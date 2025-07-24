@@ -2,14 +2,14 @@ import './Grid.scss';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 
-import almoxarifado from "../../assets/Home/almoxarifado.jpg";
-import controle from "../../assets/Home/controle.jpg";
-import geral from "../../assets/Home/geral.jpg";
-import hidro from "../../assets/Home/hidro.jpg";
-import parceiros from "../../assets/Home/parceiros.jpg";
-import pendencias from "../../assets/Home/pendencias.jpg";
-import producao from "../../assets/Home/producao.jpg";
-import rastreador from "../../assets/Home/reposicao.jpg";
+import almoxarifado from "../../assets/Home/almoxarifado.jpeg";
+import controle from "../../assets/Home/controle.jpeg";
+import geral from "../../assets/Home/geral.jpeg";
+import hidro from "../../assets/Home/hidro.jpeg";
+import parceiros from "../../assets/Home/parceiros.jpeg";
+import pendencias from "../../assets/Home/pendencias.jpeg";
+import producao from "../../assets/Home/producao.jpeg";
+import rastreador from "../../assets/Home/reposicao.jpeg";
 
 import { Link } from "react-router-dom";
 

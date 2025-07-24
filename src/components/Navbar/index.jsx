@@ -2,6 +2,9 @@ import './Navbar.scss';
 import React, { useState } from "react";
 import { Link } from 'react-router-dom';
 
+import logo from "../../assets/Logos/Ativo 2.svg"
+
+
 const Navbar = () => {
   const [isActive, setIsActive] = useState(false);
 
@@ -19,7 +22,8 @@ const Navbar = () => {
   return (
     <header>
       <nav>
-        <a className="logo" href="/">Codes</a>
+        <Link className='logo-menu' to={"/"}>CODES</Link>
+        
 
         <div
           className={`mobile-menu ${isActive ? "active" : ""}`}
