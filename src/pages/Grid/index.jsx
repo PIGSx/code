@@ -1,5 +1,6 @@
 import './Grid.scss';
-import "bootstrap-icons/font/bootstrap-icons.css";
+import 'bootstrap-icons/font/bootstrap-icons.css';
+
 
 import almoxarifado from "../../assets/Home/almoxarifado.jpg";
 import controle from "../../assets/Home/controle.jpg";
