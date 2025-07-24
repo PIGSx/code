@@ -1,3 +1,5 @@
+import './geral.css';
+
 const Geral = () => {
   return (
     <div className="geral">
