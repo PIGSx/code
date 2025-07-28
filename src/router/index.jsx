@@ -6,6 +6,7 @@ import PageNotFound from "../components/PageNotFound";
 import Carteira from "../pages/PowerBI/Carteira";
 import Rastreador from "../pages/PowerBI/Maps";
 
+
 const DefaultLayout = () => (
   <>
     <Navbar />
