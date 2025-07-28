@@ -21,7 +21,7 @@ const items = [
   { className: "five", img: geral, title: "geral", link: "/geral" },
   { className: "six", img: almoxarifado, title: "almoxarifado", link: "/" },
   { className: "seven", img: controle, title: "controle", link: "/carteira" },
-  { className: "eight", img: rastreador, title: "rastreador", link: "/" },
+  { className: "eight", img: rastreador, title: "rastreador", link: "/rastreador" },
   { className: "nine", img: parceiros, title: "parceiros", link: "/" },
 ];
 

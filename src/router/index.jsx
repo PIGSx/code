@@ -4,6 +4,7 @@ import Home from "../pages/Home";
 import Geral from "../pages/PowerBI/Geral";
 import PageNotFound from "../components/PageNotFound";
 import Carteira from "../pages/PowerBI/Carteira";
+import Rastreador from "../pages/PowerBI/Maps";
 
 const DefaultLayout = () => (
   <>
@@ -21,6 +22,7 @@ export default function RoutsPage() {
           <Route path="/" element={<Home />} />
           <Route path="/geral" element={<Geral />} />
           <Route path="/carteira" element={<Carteira />} />
+          <Route path="/rastreador" element={<Rastreador/>} />
         </Route>
 
         {/* Qualquer outra rota totalmente inválida */}
