@@ -1,19 +1,19 @@
+// src/components/Navbar/Navbar.jsx
 import './Navbar.scss';
 import React, { useState } from "react";
 import { Link } from 'react-router-dom';
-
+import ModalAutoinicializacao from '../Modal';
 
 const Navbar = () => {
   const [isActive, setIsActive] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const handleClick = () => {
     setIsActive(!isActive);
   };
 
   const navItems = [
-    { label: "Início", path: "/" },
-    { label: "Sobre", path: "/sobre" },
-    { label: "Projetos", path: "/downloads" },
+    { label: "Downloads", path: "/downloads" },
     { label: "Contato", path: "/contato" },
   ];
 
@@ -21,7 +21,6 @@ const Navbar = () => {
     <header>
       <nav>
         <Link className='logo-menu' to={"/"}>TECHNOBLADE</Link>
-        
 
         <div
           className={`mobile-menu ${isActive ? "active" : ""}`}
@@ -33,12 +32,28 @@ const Navbar = () => {
         </div>
 
         <ul className={`nav-list ${isActive ? "active" : ""}`}>
+          <li
+            key="autoinicializacao"
+            style={{
+              animation: isActive
+                ? `navLinkFade 0.5s ease forwards ${0.3}s`
+                : "",
+            }} 
+          >
+            <span
+              style={{ cursor: "pointer", color: "white" }}
+              onClick={() => setShowModal(true)}
+            >
+              Autoinicialização
+            </span>
+          </li>
+
           {navItems.map((item, index) => (
             <li
               key={index}
               style={{
                 animation: isActive
-                  ? `navLinkFade 0.5s ease forwards ${index / 7 + 0.3}s`
+                  ? `navLinkFade 0.5s ease forwards ${(index + 1) / 7 + 0.3}s`
                   : "",
               }}
             >
@@ -47,6 +62,12 @@ const Navbar = () => {
           ))}
         </ul>
       </nav>
+
+      {/* Modal fora do menu */}
+      <ModalAutoinicializacao
+        open={showModal}
+        onClose={() => setShowModal(false)}
+      />
     </header>
   );
 };
