@@ -1,12 +1,12 @@
 // src/components/ModalAutoinicializacao.jsx
 import React, { useState } from 'react';
 
-export default function ModalAutoinicializacao({ open, onClose }) {
+export default function ModalAutoinicializacao({ open, onClose, onConfirm }) {
   const [abasSelecionadas, setAbasSelecionadas] = useState([]);
   const [tempo, setTempo] = useState(5);
   const [loop, setLoop] = useState(false);
 
-  const abasDisponiveis = ['hidrometro', 'produção', 'pendencias', 'geral', 'rastreador']; 
+  const abasDisponiveis = ['Hidrometro', 'Produção', 'Pendencias', 'geral', 'rastreador'];
 
   const toggleAba = (aba) => {
     setAbasSelecionadas((prev) =>
@@ -22,12 +22,11 @@ export default function ModalAutoinicializacao({ open, onClose }) {
         <h2 className="text-xl font-semibold">Configurar Autoinicialização</h2>
 
         <div>
-          <p>Selecione as abas:</p>
+          <p className="font-medium">Selecione as abas:</p>
           {abasDisponiveis.map((aba) => (
             <label key={aba} className="block">
               <input
                 type="checkbox"
-                
                 checked={abasSelecionadas.includes(aba)}
                 onChange={() => toggleAba(aba)}
               />
@@ -61,8 +60,15 @@ export default function ModalAutoinicializacao({ open, onClose }) {
         </div>
 
         <div className="flex justify-end space-x-2">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancelar</button>
-          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Confirmar</button>
+          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm(abasSelecionadas, tempo, loop)}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Confirmar
+          </button>
         </div>
       </div>
     </div>
