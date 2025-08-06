@@ -27,7 +27,7 @@ def abrir_site():
         navegador.find_element(By.XPATH, '/html/body/div/div/div/div/section/form[1]/div/div[1]/input').send_keys("psbltda")
         navegador.find_element(By.XPATH, '/html/body/div/div/div/div/section/form[1]/div/div[2]/input').send_keys("010203" + Keys.RETURN)
 
-        # Mantém a janela aberta (você colocou 5000 segundos!)
+        # Mantém a janela aberta 
         time.sleep(5000)
 
         return jsonify({"status": "sucesso", "mensagem": "Navegador aberto com login realizado."})

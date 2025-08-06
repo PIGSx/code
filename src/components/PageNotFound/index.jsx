@@ -4,15 +4,6 @@ import "./erro.scss";
 const PageNotFound = () => {
   return (
     <>
-      <a
-        href="https://codepen.io/ZonFire99/full/njdls/"
-        className="viewFull"
-        target="_parent"
-        rel="noopener noreferrer"
-      >
-        View in full it looks way better :)
-      </a>
-
       <div className="error-wrapper">
         <div className="error">
           <div className="wrap">

@@ -52,7 +52,7 @@ const Navbar = () => {
   }, []);
 
   const navItems = [
-    { label: "Downloads", path: "/sobre" },
+    { label: "Downloads", path: "/download" },
     { label: "Contato", path: "/contato" },
   ];
 

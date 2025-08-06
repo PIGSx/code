@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Home from "../pages/Home";
+import Download from "../pages/DownloadPage";
 import Geral from "../pages/PowerBI/Geral";
 import PageNotFound from "../components/PageNotFound";
 import Carteira from "../pages/PowerBI/Carteira";
@@ -24,6 +25,7 @@ export default function RoutsPage() {
           <Route path="/geral" element={<Geral />} />
           <Route path="/carteira" element={<Carteira />} />
           <Route path="/rastreador" element={<Rastreador/>} />
+          <Route path="/download" element={<Download/>} />
         </Route>
 
         {/* Qualquer outra rota totalmente inválida */}
