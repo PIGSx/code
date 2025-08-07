@@ -10,19 +10,20 @@ import parceiros from "../../assets/Home/parceiros.jpeg";
 import pendencias from "../../assets/Home/pendencias.jpeg";
 import producao from "../../assets/Home/producao.jpeg";
 import rastreador from "../../assets/Home/reposicao.jpeg";
+import teste from "../../assets/Home/teste.jpeg";
 
 import { Link } from "react-router-dom";
 
 const items = [
-  { className: "one", img: hidro, title: "hidrometro", link: "/" },
-  { className: "two", img: producao, title: "produção", link: "/" },
-  { className: "three", img: pendencias, title: "pendencias", link: "/" },
+  { className: "one", img: teste, title: "hidrometro", link: "/" },
+  { className: "two", img: teste, title: "produção", link: "/" },
+  { className: "three", img: teste, title: "pendencias", link: "/" },
   { className: "four", title: "dashboard - painel", isTitle: true },
-  { className: "five", img: geral, title: "geral", link: "/geral" },
-  { className: "six", img: almoxarifado, title: "almoxarifado", link: "/" },
-  { className: "seven", img: controle, title: "controle", link: "/carteira" },
-  { className: "eight", img: rastreador, title: "rastreador", link: "/rastreador" },
-  { className: "nine", img: parceiros, title: "parceiros", link: "/" },
+  { className: "five", img: teste, title: "geral", link: "/geral" },
+  { className: "six", img: teste, title: "almoxarifado", link: "/" },
+  { className: "seven", img: teste, title: "controle", link: "/carteira" },
+  { className: "eight", img: teste, title: "rastreador", link: "/rastreador" },
+  { className: "nine", img: teste, title: "parceiros", link: "/" },
 ];
 
 const Grid = () => {
