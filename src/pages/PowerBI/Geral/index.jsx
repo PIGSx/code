@@ -3,7 +3,6 @@ import './geral.css';
 const Geral = () => {
   return (
     <div className="geral">
-      <h1>Dashboard - Geral</h1>
       <iframe
         title="J E H"
         width="2020"

@@ -6,6 +6,7 @@ import Geral from "../pages/PowerBI/Geral";
 import PageNotFound from "../components/PageNotFound";
 import Carteira from "../pages/PowerBI/Carteira";
 import Rastreador from "../pages/PowerBI/Maps";
+import Petrac from "../pages/PowerBI/Petrac"
 
 
 const DefaultLayout = () => (
@@ -26,6 +27,7 @@ export default function RoutsPage() {
           <Route path="/carteira" element={<Carteira />} />
           <Route path="/rastreador" element={<Rastreador/>} />
           <Route path="/download" element={<Download/>} />
+          <Route path="/petrac" element={<Petrac/>} />
         </Route>
 
         {/* Qualquer outra rota totalmente inválida */}
