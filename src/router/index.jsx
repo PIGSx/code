@@ -7,6 +7,7 @@ import PageNotFound from "../components/PageNotFound";
 import Carteira from "../pages/PowerBI/Carteira";
 import Rastreador from "../pages/PowerBI/Maps";
 import Petrac from "../pages/PowerBI/Petrac"
+import Pendente from "../pages/Pendente";
 
 
 const DefaultLayout = () => (
@@ -28,6 +29,7 @@ export default function RoutsPage() {
           <Route path="/rastreador" element={<Rastreador/>} />
           <Route path="/download" element={<Download/>} />
           <Route path="/petrac" element={<Petrac/>} />
+          <Route path="/pendente" element={<Pendente/>} />
         </Route>
 
         {/* Qualquer outra rota totalmente inválida */}

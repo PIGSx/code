@@ -17,7 +17,7 @@ import { Link } from "react-router-dom";
 const items = [
   { className: "one", img: teste, title: "PETRAC", link: "/petrac" },
   { className: "two", img: teste, title: "produção", link: "/" },
-  { className: "three", img: teste, title: "pendencias", link: "/" },
+  { className: "three", img: teste, title: "pendencias", link: "/pendente" },
   { className: "four", title: "dashboard - painel", isTitle: true },
   { className: "five", img: teste, title: "geral", link: "/geral" },
   { className: "six", img: teste, title: "almoxarifado", link: "/" },
