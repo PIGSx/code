@@ -6,7 +6,7 @@ export default function ModalAutoinicializacao({ open, onClose, onConfirm }) {
   const [tempo, setTempo] = useState(5);
   const [loop, setLoop] = useState(false);
 
-  const abasDisponiveis = ['Petrac', 'Produção', 'geral', 'rastreador'];
+  const abasDisponiveis = ['Ptrac', 'Produção', 'geral', 'rastreador'];
 
   const toggleAba = (aba) => {
     setAbasSelecionadas((prev) =>

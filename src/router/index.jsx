@@ -28,7 +28,7 @@ export default function RoutsPage() {
           <Route path="/carteira" element={<Carteira />} />
           <Route path="/rastreador" element={<Rastreador/>} />
           <Route path="/download" element={<Download/>} />
-          <Route path="/petrac" element={<Petrac/>} />
+          <Route path="/ptrac" element={<Petrac/>} />
           <Route path="/pendente" element={<Pendente/>} />
         </Route>
 

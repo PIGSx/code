@@ -15,7 +15,7 @@ import teste from "../../assets/Home/teste.jpeg";
 import { Link } from "react-router-dom";
 
 const items = [
-  { className: "one", img: teste, title: "PETRAC", link: "/petrac" },
+  { className: "one", img: teste, title: "PTRAC", link: "/petrac" },
   { className: "two", img: teste, title: "produção", link: "/" },
   { className: "three", img: teste, title: "pendencias", link: "/pendente" },
   { className: "four", title: "dashboard - painel", isTitle: true },

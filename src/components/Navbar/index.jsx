@@ -53,7 +53,8 @@ const Navbar = () => {
 
   const navItems = [
     { label: "Downloads", path: "/download" },
-    { label: "Contato", path: "/contato" },
+    { label: "Sobre", path: "/contato" },
+    
   ];
 
   return (
