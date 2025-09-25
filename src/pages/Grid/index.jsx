@@ -16,14 +16,14 @@ import { Link } from "react-router-dom";
 
 const items = [
   { className: "one", img: teste, title: "PTRAC", link: "/ptrac" },
-  { className: "two", img: teste, title: "produção", link: "/" },
+  { className: "two", img: teste, title: "<title>git", link: "/" },
   { className: "three", img: teste, title: "pendencias", link: "/pendente" },
   { className: "four", title: "dashboard - painel", isTitle: true },
   { className: "five", img: teste, title: "geral", link: "/geral" },
-  { className: "six", img: teste, title: "almoxarifado", link: "/" },
-  { className: "seven", img: teste, title: "controle", link: "/carteira" },
+  { className: "six", img: teste, title: "<title>", link: "/" },
+  { className: "seven", img: teste, title: "<title>", link: "/carteira" },
   { className: "eight", img: teste, title: "rastreador", link: "/rastreador" },
-  { className: "nine", img: teste, title: "parceiros", link: "/" },
+  { className: "nine", img: teste, title: "<title>", link: "/" },
 ];
 
 const Grid = () => {
