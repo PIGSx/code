@@ -2,28 +2,28 @@ import { Link } from "react-router-dom";
 import "./Grid.scss";
 
 const colors = [
-  "#f9b234",
-  "#3ecd5e",
-  "#e44002",
-  "#952aff",
-  "#cd3e94",
-  "#4c49ea",
-  "#ff6b6b", // adicione mais cores se precisar
+  "#371ae5",
+  "#623cec",
+  "#5a34f6",
+  "#8553ff",
+  "#8d5ff2",
+  "#b981f9",
+  "#e4a3ff",
+
 ];
 
-
 const courses = [
-  { title: "PTRAC", path: "/ptrac"},
-  { title: "RASTREADOR", path: "/rastreador"},
-  { title: "CARTEIRA", path: "/carteira"},
-  { title: "GERAL", path: "/geral"},
+  { title: "PTRAC", path: "/ptrac" },
+  { title: "RASTREADOR", path: "/rastreador" },
+  { title: "CARTEIRA", path: "/carteira" },
+  { title: "GERAL", path: "/geral" },
   { title: "MATERIAL", path: "/material" },
   { title: "IORD", path: "/iord" },
 ];
 
 const Grid = () => {
   return (
-      <div className="ag-format-container">
+    <div className="ag-format-container">
       <div className="ag-courses_box">
         {courses.map((course, index) => {
           const bgColor = colors[index % colors.length]; // seleciona cor ciclicamente
@@ -37,7 +37,8 @@ const Grid = () => {
                 <div className="ag-courses-item_title">{course.title}</div>
                 {course.date && (
                   <div className="ag-courses-item_date-box">
-                    Start: <span className="ag-courses-item_date">{course.date}</span>
+                    Start:{" "}
+                    <span className="ag-courses-item_date">{course.date}</span>
                   </div>
                 )}
               </Link>
