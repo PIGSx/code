@@ -17,8 +17,9 @@ const courses = [
   { title: "RASTREADOR", path: "/rastreador" },
   { title: "CARTEIRA", path: "/carteira" },
   { title: "GERAL", path: "/geral" },
-  { title: "MATERIAL", path: "/material" },
+  { title: "MATERIAIS", path: "/materiais" },
   { title: "IORD", path: "/iord" },
+  { title: "PENDENTE", path: "/pendente" },
 ];
 
 const Grid = () => {
