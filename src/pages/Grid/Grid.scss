@@ -3,15 +3,13 @@
   margin: 0 auto;
 }
 
-body {
-  background-color: #000;
-}
 
 .ag-courses_box {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
   padding: 50px 0;
+  padding-bottom: 200px; /* ou altura do footer */
 }
 
 .ag-courses_item {

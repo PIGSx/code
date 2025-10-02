@@ -1,12 +1,15 @@
+import Footer from './components/Footer';
 import './index.css';
 import RoutsPage from './router';
 
-
 function App() {
   return (
-   <>
-   <RoutsPage/>
-   </>
+    <div className="flex flex-col min-h-screen">
+      <main className="flex-grow">
+        <RoutsPage />
+      </main>
+      <Footer />
+    </div>
   );
 }
 
