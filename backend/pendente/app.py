@@ -49,5 +49,6 @@ def process():
     message = process_data(planilha_jjj_name, nomes_prazos_name, logradouro_name, output_file)
     return jsonify({"message": message}), 200
 
-if __name__ == '__main__':
-    app.run(port=5001, debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5001))  # fallback para 5001 no local
+    app.run(host="0.0.0.0", port=port)

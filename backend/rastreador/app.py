@@ -6,6 +6,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import time
+import os
 
 app = Flask(__name__)
 CORS(app)  # Permite conexão do React
@@ -36,4 +37,5 @@ def abrir_site():
         return jsonify({"status": "erro", "mensagem": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(port=5002, debug=True) 
+    port = int(os.environ.get("PORT", 5002))  # fallback para 5001 no local
+    app.run(host="0.0.0.0", port=port)
