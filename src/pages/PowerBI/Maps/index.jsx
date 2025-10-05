@@ -7,7 +7,7 @@ function Rastreador() {
   useEffect(() => {
     const abrir = async () => {
       try {
-        const response = await axios.post("http://localhost:5000/abrir-site");
+        const response = await axios.post("http://localhost:5002/abrir-site");
         setMensagem(response.data.mensagem);
       } catch (error) {
         setMensagem("Erro: " + (error.response?.data?.mensagem || error.message));
