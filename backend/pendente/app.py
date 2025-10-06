@@ -15,21 +15,28 @@ allowed_credentials = {
 
 # Função para processar os dados
 def process_data(planilha_jjj_name, nomes_prazos_name, logradouro_name, output_file):
-    if os.path.isfile(planilha_jjj_name):
-        # Carregar e processar a planilha
-        df = pd.read_excel(planilha_jjj_name)
-        columns_to_drop = [...]  # (mantenha sua lista de colunas a serem removidas)
-        
-        df_cleaned = df.drop(columns=columns_to_drop, errors='ignore')
-        # (continue com seu processamento de dados)
+    try:
+        if os.path.isfile(planilha_jjj_name):
+            df = pd.read_excel(planilha_jjj_name)
+            # TODO: Substitua [...] pela sua lista de colunas
+            columns_to_drop = []  # exemplo: ['Coluna1', 'Coluna2']
+            df_cleaned = df.drop(columns=columns_to_drop, errors='ignore')
+            # (adicione o restante do seu processamento aqui)
 
-        # Salvar o arquivo processado
-        df_cleaned.to_excel(output_file, index=False)
-        return "Planilha exportada com sucesso!"
+            df_cleaned.to_excel(output_file, index=False)
+            return "Planilha exportada com sucesso!"
+        else:
+            return "Arquivo não encontrado."
+    except Exception as e:
+        return f"Erro ao processar: {e}"
+
+@app.route('/')
+def home():
+    return "API code-pendente rodando com sucesso 🚀"
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.json
+    data = request.json or {}
     username = data.get('username')
     password = data.get('password')
     
@@ -40,15 +47,15 @@ def login():
 
 @app.route('/process', methods=['POST'])
 def process():
-    data = request.json
-    planilha_jjj_name = data['planilha_jjj_name']
-    nomes_prazos_name = data['nomes_prazos_name']
-    logradouro_name = data['logradouro_name']
-    output_file = data['output_file']
-    
+    data = request.json or {}
+    planilha_jjj_name = data.get('planilha_jjj_name')
+    nomes_prazos_name = data.get('nomes_prazos_name')
+    logradouro_name = data.get('logradouro_name')
+    output_file = data.get('output_file')
+
     message = process_data(planilha_jjj_name, nomes_prazos_name, logradouro_name, output_file)
     return jsonify({"message": message}), 200
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5001))  # fallback para 5001 no local
+    port = int(os.environ.get("PORT", 5000))  # Render define a porta em PORT
     app.run(host="0.0.0.0", port=port)
