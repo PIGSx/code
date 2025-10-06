@@ -6,12 +6,17 @@ function Rastreador() {
 
   useEffect(() => {
     const abrir = async () => {
-      try {
-        const response = await axios.post("http://localhost:5002/abrir-site");
-        setMensagem(response.data.mensagem);
-      } catch (error) {
-        setMensagem("Erro: " + (error.response?.data?.mensagem || error.message));
-      }
+     const API_URL =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:5002" // ambiente local
+    : "https://code-rastreador.onrender.com"; // ambiente de produção (Render)
+
+try {
+  const response = await axios.post(`${API_URL}/abrir-site`);
+  setMensagem(response.data.mensagem);
+} catch (error) {
+  setMensagem("Erro: " + (error.response?.data?.mensagem || error.message));
+}
     };
 
     abrir();
