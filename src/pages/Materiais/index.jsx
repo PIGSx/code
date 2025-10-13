@@ -20,11 +20,15 @@ function Materiais() {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:5000/api/processar", {
+      const API_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:5000"
+    : "https://code-materiais.onrender.com";
 
-        method: "POST",
-        body: formData,
-      });
+const response = await fetch(`${API_URL}/api/processar`, {
+  method: "POST",
+  body: formData,
+});
 
       const data = await response.json();
       setResultado(data);

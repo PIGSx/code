@@ -15,12 +15,17 @@ function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    try {
-      const response = await fetch("http://127.0.0.1:5000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+   const API_URL =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://127.0.0.1:5001" // quando estiver testando localmente
+    : "https://code-pendente.onrender.com"; // quando estiver no Render
+
+try {
+  const response = await fetch(`${API_URL}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
 
       const data = await response.json();
       if (data.success) {
