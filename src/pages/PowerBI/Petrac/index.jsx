@@ -5,9 +5,11 @@ const Petrac = () => {
     <div className="petrac">
       <iframe
         title="DASH 2"
-        src="https://app.powerbi.com/reportEmbed?reportId=123198fb-d969-422f-918d-bd1e66d37a3e&autoAuth=true&ctid=38ae2f02-5710-4e12-80bb-83600c3fdf1e"
-        frameBorder="0"           // ✅ React usa frameBorder com B maiúsculo
-        allowFullScreen           // ✅ basta colocar sem = "true"
+        width="1140"
+        height="541.25"
+        src="https://app.powerbi.com/reportEmbed?reportId=94d8b030-2732-48e8-aadb-a592c81658f2&autoAuth=true&ctid=c22a732b-965b-4586-bfcd-f42826632ad7"
+        frameborder="0"
+        allowFullScreen="true"
       ></iframe>
     </div>
   );

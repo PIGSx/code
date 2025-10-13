@@ -9,8 +9,10 @@ import Rastreador from "../pages/PowerBI/Maps";
 import Petrac from "../pages/PowerBI/Petrac"
 import Pendente from "../pages/Pendente";
 import Materiais from "../pages/Materiais";
-
-
+import Polos from "../pages/Polos"
+import Itaim from "../pages/PowerBI/Polos/Itaim";
+import Penha from "../pages/PowerBI/Polos/Penha";
+import SM from "../pages/PowerBI/Polos/SM";
 const DefaultLayout = () => (
   <>
     <Navbar />
@@ -32,6 +34,10 @@ export default function RoutsPage() {
           <Route path="/ptrac" element={<Petrac/>} />
           <Route path="/pendente" element={<Pendente/>} />
           <Route path="/materiais" element={<Materiais/>} />
+          <Route path="/polos" element={<Polos/>} />
+          <Route path="/itaim" element={<Itaim/>} />
+          <Route path="/penha" element={<Penha/>} />
+          <Route path="/sm" element={<SM/>} />
         </Route>
 
         {/* Qualquer outra rota totalmente inválida */}

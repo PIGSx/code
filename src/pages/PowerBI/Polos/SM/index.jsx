@@ -1,7 +1,8 @@
+import React from "react";
 
-const Carteira = () => {
+const SM = () => {
   return (
-    <div className="carteira">
+    <div className="SM">
       <iframe
         title="J E H"
         width="2020"
@@ -14,4 +15,4 @@ const Carteira = () => {
   );
 };
 
-export default Carteira;
+export default SM;

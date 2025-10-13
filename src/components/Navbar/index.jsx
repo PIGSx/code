@@ -1,8 +1,8 @@
-import './Navbar.scss';
+import "./Navbar.scss";
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from 'react-router-dom';
-import ModalAutoinicializacao from '../Modal';
-import { PauseCircle } from 'lucide-react'; // ícone bonito
+import { Link, useNavigate } from "react-router-dom";
+import ModalAutoinicializacao from "../Modal";
+import { PauseCircle } from "lucide-react"; // Ícone bonito
 
 const Navbar = () => {
   const [isActive, setIsActive] = useState(false);
@@ -13,16 +13,47 @@ const Navbar = () => {
 
   const handleClick = () => setIsActive(!isActive);
 
-  const startAutoNavigation = ({ abasSelecionadas, tempo, loop }) => {
+  // --- Função principal de navegação automática ---
+  const startAutoNavigation = ({
+    abasSelecionadas,
+    subCardsSelecionados,
+    tempo,
+    loop,
+  }) => {
+    if (!abasSelecionadas || abasSelecionadas.length === 0) return;
+
+    // Cria uma sequência linear de rotas
+    const sequence = [];
+
+    abasSelecionadas.forEach((aba) => {
+      // Aba "Polos" tem subcards especiais (955, 921, 920)
+      if (aba.toLowerCase() === "polos" && subCardsSelecionados["Polos"]) {
+        subCardsSelecionados["Polos"].forEach((sub) => {
+          if (sub === "955") sequence.push("/itaim");
+          else if (sub === "921") sequence.push("/penha");
+          else if (sub === "920") sequence.push("/sm");
+        });
+
+        // Caso o usuário selecione só "Polos" (sem subcards)
+        if (subCardsSelecionados["Polos"].length === 0) {
+          sequence.push("/polos");
+        }
+      } else {
+        sequence.push(`/${aba.toLowerCase()}`);
+      }
+    });
+
+    if (sequence.length === 0) return;
+
     let index = 0;
 
     const navigateToNext = () => {
-      if (index < abasSelecionadas.length) {
-        navigate(`/${abasSelecionadas[index].toLowerCase()}`);
+      if (index < sequence.length) {
+        navigate(sequence[index]);
         index++;
       } else if (loop) {
         index = 0;
-        navigate(`/${abasSelecionadas[index].toLowerCase()}`);
+        navigate(sequence[index]);
         index++;
       } else {
         clearInterval(intervalRef.current);
@@ -30,37 +61,47 @@ const Navbar = () => {
       }
     };
 
-    navigateToNext(); // Navega imediatamente
+    // Pequeno delay pra evitar “piscar” ao iniciar
+    setTimeout(navigateToNext, 300);
     intervalRef.current = setInterval(navigateToNext, tempo * 1000);
   };
 
-  const handleConfirmar = (abasSelecionadas, tempo, loop) => {
+  // --- Quando o usuário confirma no modal ---
+  const handleConfirmar = (
+    abasSelecionadas,
+    subCardsSelecionados,
+    tempo,
+    loop
+  ) => {
     setShowModal(false);
-    setConfig({ abasSelecionadas, tempo, loop });
-    startAutoNavigation({ abasSelecionadas, tempo, loop });
+    setConfig({ abasSelecionadas, subCardsSelecionados, tempo, loop });
+    startAutoNavigation({ abasSelecionadas, subCardsSelecionados, tempo, loop });
   };
 
+  // --- Parar navegação automática ---
   const pararAutoNavegacao = () => {
     clearInterval(intervalRef.current);
     intervalRef.current = null;
     setConfig(null);
-    // navigate('/'); // opcional: volta para a home
   };
 
+  // --- Limpeza ao desmontar ---
   useEffect(() => {
     return () => clearInterval(intervalRef.current);
   }, []);
 
+  // --- Itens padrão do menu ---
   const navItems = [
     { label: "Downloads", path: "/download" },
     { label: "Sobre", path: "/contato" },
-    
   ];
 
   return (
     <header>
       <nav>
-        <Link className='logo-menu' to={"/"}>TECHNOBLADE</Link>
+        <Link className="logo-menu" to={"/"}>
+          TECHNOBLADE
+        </Link>
 
         <div
           className={`mobile-menu ${isActive ? "active" : ""}`}
@@ -72,12 +113,11 @@ const Navbar = () => {
         </div>
 
         <ul className={`nav-list ${isActive ? "active" : ""}`}>
+          {/* Item de autoinicialização */}
           <li
             key="autoinicializacao"
             style={{
-              animation: isActive
-                ? `navLinkFade 0.5s ease forwards ${0.3}s`
-                : "",
+              animation: isActive ? `navLinkFade 0.5s ease forwards 0.3s` : "",
             }}
           >
             <span
@@ -88,6 +128,7 @@ const Navbar = () => {
             </span>
           </li>
 
+          {/* Outros itens do menu */}
           {navItems.map((item, index) => (
             <li
               key={index}
@@ -103,13 +144,14 @@ const Navbar = () => {
         </ul>
       </nav>
 
+      {/* Modal de autoinicialização */}
       <ModalAutoinicializacao
         open={showModal}
         onClose={() => setShowModal(false)}
         onConfirm={handleConfirmar}
       />
 
-      {/* Botão flutuante para parar a navegação */}
+      {/* Botão flutuante de parar navegação */}
       {config && (
         <div className="fixed bottom-6 right-6 z-50">
           <button

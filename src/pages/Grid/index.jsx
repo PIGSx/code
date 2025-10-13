@@ -13,6 +13,7 @@ const colors = [
 ];
 
 const courses = [
+   { title: "POLOS", path: "/polos" },
   { title: "PTRAC", path: "/ptrac" },
   { title: "RASTREADOR", path: "/rastreador" },
   { title: "CARTEIRA", path: "/carteira" },
