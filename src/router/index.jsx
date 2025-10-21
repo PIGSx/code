@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Home from "../pages/Home";
 import Download from "../pages/DownloadPage";
-import Geral from "../pages/PowerBI/Geral";
 import PageNotFound from "../components/PageNotFound";
 import Carteira from "../pages/PowerBI/Carteira";
 import Rastreador from "../pages/PowerBI/Maps";
@@ -27,7 +26,6 @@ export default function RoutsPage() {
         {/* Layout com Navbar visível em todas as rotas válidas */}
         <Route element={<DefaultLayout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/geral" element={<Geral />} />
           <Route path="/carteira" element={<Carteira />} />
           <Route path="/rastreador" element={<Rastreador/>} />
           <Route path="/download" element={<Download/>} />

@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 
 const abasDisponiveis = [
   { nome: 'Carteira', subCards: [] },
-  { nome: 'geral', subCards: [] },
    { nome: 'Polos', subCards: ['955', '921', '920'] },
   { nome: 'Ptrac', subCards: [] },
   { nome: 'rastreador', subCards: [] },

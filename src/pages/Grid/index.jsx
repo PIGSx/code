@@ -17,7 +17,6 @@ const courses = [
   { title: "PTRAC", path: "/ptrac" },
   { title: "RASTREADOR", path: "/rastreador" },
   { title: "CARTEIRA", path: "/carteira" },
-  { title: "GERAL", path: "/geral" },
   { title: "MATERIAIS", path: "/materiais" },
   { title: "IORD", path: "/iord" },
   { title: "PENDENTE", path: "/pendente" },
