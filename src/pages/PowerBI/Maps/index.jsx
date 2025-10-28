@@ -10,7 +10,7 @@ function Rastreador() {
     const abrir = async () => {
       const API_URL =
         window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-          ? "http://localhost:5002"
+          ? "http://localhost:5001"
           : "https://code-rastreador.onrender.com";
 
       try {
