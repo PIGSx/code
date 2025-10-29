@@ -2,7 +2,7 @@ import "./Navbar.scss";
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ModalAutoinicializacao from "../Modal";
-import { PauseCircle } from "lucide-react"; // Ícone bonito
+import { PauseCircle } from "lucide-react";
 
 const Navbar = () => {
   const [isActive, setIsActive] = useState(false);
@@ -12,6 +12,12 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const handleClick = () => setIsActive(!isActive);
+  const closeMenu = () => setIsActive(false);
+
+  // Bloquear scroll ao abrir menu mobile
+  useEffect(() => {
+    document.body.style.overflow = isActive ? "hidden" : "auto";
+  }, [isActive]);
 
   // --- Função principal de navegação automática ---
   const startAutoNavigation = ({
@@ -22,11 +28,9 @@ const Navbar = () => {
   }) => {
     if (!abasSelecionadas || abasSelecionadas.length === 0) return;
 
-    // Cria uma sequência linear de rotas
     const sequence = [];
 
     abasSelecionadas.forEach((aba) => {
-      // Aba "Polos" tem subcards especiais (955, 921, 920)
       if (aba.toLowerCase() === "polos" && subCardsSelecionados["Polos"]) {
         subCardsSelecionados["Polos"].forEach((sub) => {
           if (sub === "955") sequence.push("/itaim");
@@ -34,7 +38,6 @@ const Navbar = () => {
           else if (sub === "920") sequence.push("/sm");
         });
 
-        // Caso o usuário selecione só "Polos" (sem subcards)
         if (subCardsSelecionados["Polos"].length === 0) {
           sequence.push("/polos");
         }
@@ -46,7 +49,6 @@ const Navbar = () => {
     if (sequence.length === 0) return;
 
     let index = 0;
-
     const navigateToNext = () => {
       if (index < sequence.length) {
         navigate(sequence[index]);
@@ -61,12 +63,10 @@ const Navbar = () => {
       }
     };
 
-    // Pequeno delay pra evitar “piscar” ao iniciar
     setTimeout(navigateToNext, 300);
     intervalRef.current = setInterval(navigateToNext, tempo * 1000);
   };
 
-  // --- Quando o usuário confirma no modal ---
   const handleConfirmar = (
     abasSelecionadas,
     subCardsSelecionados,
@@ -78,19 +78,16 @@ const Navbar = () => {
     startAutoNavigation({ abasSelecionadas, subCardsSelecionados, tempo, loop });
   };
 
-  // --- Parar navegação automática ---
   const pararAutoNavegacao = () => {
     clearInterval(intervalRef.current);
     intervalRef.current = null;
     setConfig(null);
   };
 
-  // --- Limpeza ao desmontar ---
   useEffect(() => {
     return () => clearInterval(intervalRef.current);
   }, []);
 
-  // --- Itens padrão do menu ---
   const navItems = [
     { label: "Downloads", path: "/download" },
     { label: "Sobre", path: "/contato" },
@@ -99,7 +96,7 @@ const Navbar = () => {
   return (
     <header>
       <nav>
-        <Link className="logo-menu" to={"/"}>
+        <Link className="logo-menu" to={"/"} onClick={closeMenu}>
           TECHNOBLADE
         </Link>
 
@@ -113,45 +110,36 @@ const Navbar = () => {
         </div>
 
         <ul className={`nav-list ${isActive ? "active" : ""}`}>
-          {/* Item de autoinicialização */}
-          <li
-            key="autoinicializacao"
-            style={{
-              animation: isActive ? `navLinkFade 0.5s ease forwards 0.3s` : "",
-            }}
-          >
+          <li>
             <span
-              style={{ cursor: "pointer", color: "white" }}
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                setShowModal(true);
+                closeMenu();
+              }}
             >
               Autoinicialização
             </span>
           </li>
 
-          {/* Outros itens do menu */}
           {navItems.map((item, index) => (
-            <li
-              key={index}
-              style={{
-                animation: isActive
-                  ? `navLinkFade 0.5s ease forwards ${(index + 1) / 7 + 0.3}s`
-                  : "",
-              }}
-            >
-              <Link to={item.path}>{item.label}</Link>
+            <li key={index}>
+              <Link to={item.path} onClick={closeMenu}>
+                {item.label}
+              </Link>
             </li>
           ))}
         </ul>
+
+        {/* Overlay escuro no fundo */}
+        {isActive && <div className="menu-overlay" onClick={closeMenu}></div>}
       </nav>
 
-      {/* Modal de autoinicialização */}
       <ModalAutoinicializacao
         open={showModal}
         onClose={() => setShowModal(false)}
         onConfirm={handleConfirmar}
       />
 
-      {/* Botão flutuante de parar navegação */}
       {config && (
         <div className="fixed bottom-6 right-6 z-50">
           <button

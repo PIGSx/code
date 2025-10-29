@@ -13,6 +13,8 @@ import Itaim from "../pages/PowerBI/Polos/Itaim";
 import Penha from "../pages/PowerBI/Polos/Penha";
 import SM from "../pages/PowerBI/Polos/SM";
 import MateriaisList from "../pages/Materiais/MateriaisList";
+import MateriaisApp from "../pages/Materiais/MateriaisApp";
+
 
 const DefaultLayout = () => (
   <>
@@ -39,6 +41,7 @@ export default function RoutsPage() {
           <Route path="/penha" element={<Penha/>} />
           <Route path="/sm" element={<SM/>} />
           <Route path="/materiaislist" element={ <MateriaisList/> } />
+          <Route path="/materiaisapp" element={ <MateriaisApp/> } />
         </Route>
 
         {/* Qualquer outra rota totalmente inválida */}

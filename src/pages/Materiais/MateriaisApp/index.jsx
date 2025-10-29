@@ -21,14 +21,14 @@ function Materiais() {
     try {
       setLoading(true);
       const API_URL =
-  window.location.hostname === "localhost"
-    ? "http://localhost:5000"
-    : "https://code-materiais.onrender.com";
+        window.location.hostname === "localhost"
+          ? "http://localhost:5000"
+          : "https://code-materiais.onrender.com";
 
-const response = await fetch(`${API_URL}/api/processar`, {
-  method: "POST",
-  body: formData,
-});
+      const response = await fetch(`${API_URL}/api/processar`, {
+        method: "POST",
+        body: formData,
+      });
 
       const data = await response.json();
       setResultado(data);
@@ -41,34 +41,36 @@ const response = await fetch(`${API_URL}/api/processar`, {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen  py-10 px-4">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">Processar Arquivos</h1>
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black py-10 px-4 text-gray-100 flex flex-col items-center">
+      <h1 className="text-3xl font-extrabold mb-8 text-center bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-md">
+        Processar Arquivos
+      </h1>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-xl p-6 w-full max-w-md"
+        className="bg-gray-800/90 backdrop-blur-sm shadow-lg rounded-xl p-6 w-full max-w-md border border-gray-700"
       >
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label className="block text-gray-300 font-medium mb-2">
             Arquivo Kits
           </label>
           <input
             type="file"
             accept=".xlsx"
             onChange={(e) => setKitsFile(e.target.files[0])}
-            className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-600 bg-gray-900 text-gray-200 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         <div className="mb-6">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label className="block text-gray-300 font-medium mb-2">
             Arquivo Baixas
           </label>
           <input
             type="file"
             accept=".xlsx"
             onChange={(e) => setBaixasFile(e.target.files[0])}
-            className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-600 bg-gray-900 text-gray-200 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -82,12 +84,12 @@ const response = await fetch(`${API_URL}/api/processar`, {
       </form>
 
       {resultado.length > 0 && (
-        <div className="mt-10 w-full max-w-4xl">
-          <h2 className="text-xl font-semibold mb-4">Resultado</h2>
+        <div className="mt-10 w-full max-w-6xl">
+          <h2 className="text-2xl font-bold mb-4 text-gray-100">Resultado</h2>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300 text-sm">
+            <table className="w-full border-collapse border border-gray-700 text-sm">
               <thead>
-                <tr className="bg-gray-200">
+                <tr className="bg-gray-800">
                   <th className="border p-2">Número OS</th>
                   <th className="border p-2">TSE</th>
                   <th className="border p-2">Esperado</th>
@@ -99,7 +101,10 @@ const response = await fetch(`${API_URL}/api/processar`, {
               </thead>
               <tbody>
                 {resultado.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
+                  <tr
+                    key={idx}
+                    className="hover:bg-gray-700 transition-colors duration-200"
+                  >
                     <td className="border p-2">{item["Número OS"]}</td>
                     <td className="border p-2">{item.TSE}</td>
                     <td className="border p-2">{item.Esperado}</td>
@@ -109,8 +114,8 @@ const response = await fetch(`${API_URL}/api/processar`, {
                     <td
                       className={`border p-2 font-bold ${
                         item.Status === "OK"
-                          ? "text-green-600"
-                          : "text-red-600"
+                          ? "text-green-400"
+                          : "text-red-500"
                       }`}
                     >
                       {item.Status}
