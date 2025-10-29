@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LogOut, Lock, User } from "lucide-react";
+import { LogOut, Lock, User, Upload } from "lucide-react";
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -9,24 +9,14 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [token, setToken] = useState("");
   const [form, setForm] = useState({
-    planilha_jjj_name: "",
-    nomes_prazos_name: "",
-    logradouro_name: "",
-    output_file: "",
+    relatorio_fechados: null,
+    planilha_prazos: null,
+    pagina_guia: null,
+    nome_do_relatorio: "",
   });
 
-  // URLs dinâmicas
-  const AUTH_URL =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
-      ? "http://127.0.0.1:5004"
-      : "https://auth-api.onrender.com";
-
-  const PENDENTE_URL =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
-      ? "http://127.0.0.1:5002"
-      : "https://code-pendente.onrender.com";
+  const AUTH_URL = "http://127.0.0.1:5004";
+  const PENDENTE_URL = "http://127.0.0.1:5002";
 
   // LOGIN
   const handleLogin = async (e) => {
@@ -51,39 +41,57 @@ export default function App() {
         setError(data.message || "Usuário ou senha inválidos.");
       }
     } catch {
-      setError("Erro ao conectar com o servidor de autenticação.");
+      setError("Erro ao conectar com o servidor local (porta 5004).");
     }
   };
 
-  // INPUTS DE FORM
+  // Muda texto ou arquivos
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, type, files, value } = e.target;
+    if (type === "file") {
+      setForm({ ...form, [name]: files[0] });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
 
-  // PROCESSAR
+  // PROCESSAR e baixar arquivo
   const handleProcess = async (e) => {
     e.preventDefault();
-    setMessage("Processando...");
+    setMessage("Enviando arquivos...");
+
+    const formData = new FormData();
+    if (form.relatorio_fechados) formData.append("relatorio_fechados", form.relatorio_fechados);
+    if (form.planilha_prazos) formData.append("planilha_prazos", form.planilha_prazos);
+    if (form.pagina_guia) formData.append("pagina_guia", form.pagina_guia);
+    formData.append("nome_do_relatorio", form.nome_do_relatorio || "saida.xlsx");
 
     try {
       const response = await fetch(`${PENDENTE_URL}/process`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage(data.message || "Processamento concluído.");
-      } else {
-        setMessage(data.error || "Erro ao processar os arquivos.");
+      if (!response.ok) {
+        const errorData = await response.json();
+        setMessage(errorData.error || "Erro ao processar os arquivos.");
+        return;
       }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", form.nome_do_relatorio || "saida.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setMessage("Arquivo processado e baixado com sucesso!");
     } catch {
-      setMessage("Erro ao conectar com o servidor de pendente.");
+      setMessage("Erro ao conectar com o servidor local (porta 5002).");
     }
   };
 
@@ -94,10 +102,10 @@ export default function App() {
     setUsername("");
     setPassword("");
     setForm({
-      planilha_jjj_name: "",
-      nomes_prazos_name: "",
-      logradouro_name: "",
-      output_file: "",
+      relatorio_fechados: null,
+      planilha_prazos: null,
+      pagina_guia: null,
+      nome_do_relatorio: "",
     });
     setMessage("");
   };
@@ -111,14 +119,8 @@ export default function App() {
               Login
             </h2>
 
-            {error && (
-              <p className="text-red-400 text-sm text-center mb-4">{error}</p>
-            )}
-            {message && (
-              <p className="text-green-400 text-sm text-center mb-4">
-                {message}
-              </p>
-            )}
+            {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}
+            {message && <p className="text-green-400 text-sm text-center mb-4">{message}</p>}
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="relative">
@@ -167,21 +169,32 @@ export default function App() {
 
             <form onSubmit={handleProcess} className="space-y-4">
               {[
-                "planilha_jjj_name",
-                "nomes_prazos_name",
-                "logradouro_name",
-                "output_file",
-              ].map((field) => (
-                <input
-                  key={field}
-                  type="text"
-                  name={field}
-                  placeholder={field.replace(/_/g, " ")}
-                  value={form[field]}
-                  onChange={handleChange}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-gray-200 placeholder-gray-500 focus:ring focus:ring-green-500 outline-none"
-                />
+                { name: "relatorio_fechados", label: "Relatório Fechados" },
+                { name: "planilha_prazos", label: "Planilha de Prazos" },
+                { name: "pagina_guia", label: "Página Guia" },
+              ].map(({ name, label }) => (
+                <div key={name} className="flex flex-col">
+                  <label className="text-sm text-gray-400 mb-1">{label}</label>
+                  <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                    <Upload className="w-4 h-4 text-gray-500" />
+                    <input
+                      type="file"
+                      name={name}
+                      onChange={handleChange}
+                      className="text-sm text-gray-300 file:hidden focus:outline-none"
+                    />
+                  </div>
+                </div>
               ))}
+
+              <input
+                type="text"
+                name="nome_do_relatorio"
+                placeholder="Nome do Relatório"
+                value={form.nome_do_relatorio}
+                onChange={handleChange}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-gray-200 placeholder-gray-500 focus:ring focus:ring-green-500 outline-none"
+              />
 
               <button
                 type="submit"
@@ -191,11 +204,7 @@ export default function App() {
               </button>
             </form>
 
-            {message && (
-              <p className="mt-4 text-center text-gray-400 animate-pulse">
-                {message}
-              </p>
-            )}
+            {message && <p className="mt-4 text-center text-gray-400 animate-pulse">{message}</p>}
           </>
         )}
       </div>
