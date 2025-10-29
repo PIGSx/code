@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import { LogOut, Lock, User } from "lucide-react";
 
-function App() {
+export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -14,20 +15,20 @@ function App() {
     output_file: "",
   });
 
-  // Define URLs dinâmicas
+  // URLs dinâmicas
   const AUTH_URL =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1"
-      ? "http://127.0.0.1:5004" // auth.py local
-      : "https://auth-api.onrender.com"; // auth hospedado
+      ? "http://127.0.0.1:5004"
+      : "https://auth-api.onrender.com";
 
   const PENDENTE_URL =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1"
-      ? "http://127.0.0.1:5002" // pendente local
-      : "https://code-pendente.onrender.com"; // pendente hospedado
+      ? "http://127.0.0.1:5002"
+      : "https://code-pendente.onrender.com";
 
-  // --- LOGIN ---
+  // LOGIN
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -45,7 +46,6 @@ function App() {
       if (data.success && data.token) {
         setLoggedIn(true);
         setToken(data.token);
-        setError("");
         setMessage(`Bem-vindo, ${data.user}!`);
       } else {
         setError(data.message || "Usuário ou senha inválidos.");
@@ -55,12 +55,12 @@ function App() {
     }
   };
 
-  // --- INPUTS DE FORM ---
+  // INPUTS DE FORM
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // --- PROCESSAR ---
+  // PROCESSAR
   const handleProcess = async (e) => {
     e.preventDefault();
     setMessage("Processando...");
@@ -87,7 +87,7 @@ function App() {
     }
   };
 
-  // --- LOGOUT ---
+  // LOGOUT
   const handleLogout = () => {
     setLoggedIn(false);
     setToken("");
@@ -103,33 +103,49 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black flex items-center justify-center text-gray-100 px-4 py-10">
+      <div className="w-full max-w-md bg-gray-900/60 backdrop-blur-lg border border-gray-800 rounded-2xl shadow-xl p-8">
         {!loggedIn ? (
           <>
-            <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
-            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+            <h2 className="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+              Login
+            </h2>
+
+            {error && (
+              <p className="text-red-400 text-sm text-center mb-4">{error}</p>
+            )}
+            {message && (
+              <p className="text-green-400 text-sm text-center mb-4">
+                {message}
+              </p>
+            )}
 
             <form onSubmit={handleLogin} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Usuário"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-blue-400"
-              />
+              <div className="relative">
+                <User className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Usuário"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-10 py-2 text-gray-200 placeholder-gray-500 focus:ring focus:ring-blue-500 outline-none"
+                />
+              </div>
 
-              <input
-                type="password"
-                placeholder="Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-blue-400"
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
+                <input
+                  type="password"
+                  placeholder="Senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-10 py-2 text-gray-200 placeholder-gray-500 focus:ring focus:ring-blue-500 outline-none"
+                />
+              </div>
 
               <button
                 type="submit"
-                className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
+                className="w-full bg-blue-600 hover:bg-blue-700 transition-all text-white font-semibold py-2 rounded-lg"
               >
                 Entrar
               </button>
@@ -137,41 +153,48 @@ function App() {
           </>
         ) : (
           <>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Processar Arquivos</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-300 bg-clip-text text-transparent">
+                Processar Arquivos
+              </h2>
               <button
                 onClick={handleLogout}
-                className="text-sm text-red-500 hover:text-red-700"
+                className="flex items-center gap-1 text-red-400 hover:text-red-500 transition"
               >
-                Sair
+                <LogOut className="w-4 h-4" /> Sair
               </button>
             </div>
 
             <form onSubmit={handleProcess} className="space-y-4">
-              {["planilha_jjj_name", "nomes_prazos_name", "logradouro_name", "output_file"].map(
-                (field) => (
-                  <input
-                    key={field}
-                    type="text"
-                    name={field}
-                    placeholder={field.replace(/_/g, " ")}
-                    value={form[field]}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-green-400"
-                  />
-                )
-              )}
+              {[
+                "planilha_jjj_name",
+                "nomes_prazos_name",
+                "logradouro_name",
+                "output_file",
+              ].map((field) => (
+                <input
+                  key={field}
+                  type="text"
+                  name={field}
+                  placeholder={field.replace(/_/g, " ")}
+                  value={form[field]}
+                  onChange={handleChange}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-gray-200 placeholder-gray-500 focus:ring focus:ring-green-500 outline-none"
+                />
+              ))}
 
               <button
                 type="submit"
-                className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition"
+                className="w-full bg-green-600 hover:bg-green-700 transition-all text-white font-semibold py-2 rounded-lg"
               >
                 Processar
               </button>
             </form>
 
             {message && (
-              <p className="mt-4 text-center text-gray-700">{message}</p>
+              <p className="mt-4 text-center text-gray-400 animate-pulse">
+                {message}
+              </p>
             )}
           </>
         )}
@@ -179,5 +202,3 @@ function App() {
     </div>
   );
 }
-
-export default App;

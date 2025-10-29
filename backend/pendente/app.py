@@ -8,7 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 # URL da API de autenticação
-AUTH_URL = os.environ.get("AUTH_URL", "http://127.0.0.1:5001")  # ou Render URL
+AUTH_URL = os.environ.get("AUTH_URL", "http://127.0.0.1:5004")  # ou Render URL
 
 # Função para processar os dados
 def process_data(planilha_jjj_name, nomes_prazos_name, logradouro_name, output_file):
