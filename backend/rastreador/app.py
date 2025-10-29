@@ -1,4 +1,3 @@
-# backend/app.py
 from flask import Flask, jsonify
 from flask_cors import CORS
 from selenium import webdriver
@@ -21,7 +20,7 @@ def abrir_site():
         options = webdriver.ChromeOptions()
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--headless')  # Importante: roda sem abrir janela
+        options.add_argument('--headless')  # Roda sem abrir janela
         options.add_argument('--disable-gpu')
         options.add_argument('--window-size=1920,1080')
 
@@ -41,13 +40,13 @@ def abrir_site():
         navegador.quit()
 
         return jsonify({
-            "status": "sucesso",
+            "status": "success",
             "mensagem": f"Login realizado com sucesso! Título da página: {titulo}"
         })
 
     except Exception as e:
-        return jsonify({"status": "erro", "mensagem": str(e)}), 500
+        return jsonify({"status": "error", "mensagem": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5001))
+    port = int(os.environ.get("PORT", 5001))  # Mantém a porta definida
     app.run(host="0.0.0.0", port=port)

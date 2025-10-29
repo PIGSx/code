@@ -20,10 +20,7 @@ function Materiais() {
 
     try {
       setLoading(true);
-      const API_URL =
-        window.location.hostname === "localhost"
-          ? "http://localhost:5000"
-          : "https://code-materiais.onrender.com";
+      const API_URL = "http://localhost:5000"; // Altere para a URL da sua API
 
       const response = await fetch(`${API_URL}/api/processar`, {
         method: "POST",

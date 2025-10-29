@@ -17,7 +17,7 @@ def processar():
         baixas = pd.read_excel(baixas_file, engine='openpyxl')
 
         # Normalizar as colunas
-        kits.columns = kits.columns.str.strip()  # Remove espaços em branco nos nomes das colunas
+        kits.columns = kits.columns.str.strip()
         baixas.columns = baixas.columns.str.strip()
 
         # Filtrar colunas de interesse
@@ -26,7 +26,8 @@ def processar():
 
         # Normalizar as colunas de baixas
         baixas['Codigo'] = baixas['Material'].astype(str)
-        baixas['Quantidade'] = baixas['Quantidade - Unidade de Medida'].astype(str).str.split().str[0].str.extract(r'(\d+\.?\d*)')[0].astype(float)
+        baixas['Quantidade'] = baixas['Quantidade - Unidade de Medida'].astype(str)\
+            .str.split().str[0].str.extract(r'(\d+\.?\d*)')[0].astype(float)
 
         # Criar dicionário de kits esperados por TSE
         kits_dict = kits.groupby("TSE").apply(lambda x: dict(zip(x["Material"], x["Quantidade"]))).to_dict()
@@ -59,9 +60,9 @@ def processar():
         return jsonify(relatorio)
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 400  # Retorna erro 400 com mensagem de erro
+        return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
     import os
-    port = int(os.environ.get("PORT", 5000))  # Render fornece a porta em variável de ambiente
+    port = int(os.environ.get("PORT", 5000))  # Porta definida, padrão 5000
     app.run(host="0.0.0.0", port=port, debug=True)
