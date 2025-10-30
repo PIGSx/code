@@ -1,14 +1,27 @@
 import React, { useState } from "react";
+import { getRole, authHeaders } from "../../../utils/auth";
 
-function Materiais() {
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+function MateriaisApp() {
+  const role = getRole();
   const [kitsFile, setKitsFile] = useState(null);
   const [baixasFile, setBaixasFile] = useState(null);
   const [resultado, setResultado] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // 🚫 Bloqueia acesso se não for admin
+  if (role !== "admin") {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen text-gray-400">
+        <p>Acesso restrito a administradores.</p>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!kitsFile || !baixasFile) {
       alert("Por favor, envie os dois arquivos!");
       return;
@@ -20,18 +33,23 @@ function Materiais() {
 
     try {
       setLoading(true);
-      const API_URL = "http://localhost:5000"; // Altere para a URL da sua API
+      setError(null);
 
       const response = await fetch(`${API_URL}/api/processar`, {
         method: "POST",
+        headers: {
+          ...authHeaders(), // usa o helper padrão do utils/auth.js
+        },
         body: formData,
       });
 
+      if (!response.ok) throw new Error("Erro ao processar arquivos");
+
       const data = await response.json();
       setResultado(data);
-    } catch (error) {
-      console.error("Erro ao enviar arquivos:", error);
-      alert("Erro ao processar os arquivos");
+    } catch (err) {
+      console.error("❌ Erro ao enviar arquivos:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -39,13 +57,13 @@ function Materiais() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black py-10 px-4 text-gray-100 flex flex-col items-center">
-      <h1 className="text-3xl font-extrabold mb-8 text-center bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-md">
-        Processar Arquivos
+      <h1 className="text-3xl font-extrabold mb-8 bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+        Processar Arquivos de Materiais
       </h1>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-gray-800/90 backdrop-blur-sm shadow-lg rounded-xl p-6 w-full max-w-md border border-gray-700"
+        className="bg-gray-800/90 shadow-lg rounded-xl p-6 w-full max-w-md border border-gray-700"
       >
         <div className="mb-4">
           <label className="block text-gray-300 font-medium mb-2">
@@ -55,7 +73,7 @@ function Materiais() {
             type="file"
             accept=".xlsx"
             onChange={(e) => setKitsFile(e.target.files[0])}
-            className="w-full border border-gray-600 bg-gray-900 text-gray-200 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-600 bg-gray-900 text-gray-200 p-2 rounded-md focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -67,7 +85,7 @@ function Materiais() {
             type="file"
             accept=".xlsx"
             onChange={(e) => setBaixasFile(e.target.files[0])}
-            className="w-full border border-gray-600 bg-gray-900 text-gray-200 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-600 bg-gray-900 text-gray-200 p-2 rounded-md focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -78,6 +96,7 @@ function Materiais() {
         >
           {loading ? "Processando..." : "Enviar"}
         </button>
+        {error && <p className="text-red-500 mt-2">{error}</p>}
       </form>
 
       {resultado.length > 0 && (
@@ -98,10 +117,7 @@ function Materiais() {
               </thead>
               <tbody>
                 {resultado.map((item, idx) => (
-                  <tr
-                    key={idx}
-                    className="hover:bg-gray-700 transition-colors duration-200"
-                  >
+                  <tr key={idx} className="hover:bg-gray-700">
                     <td className="border p-2">{item["Número OS"]}</td>
                     <td className="border p-2">{item.TSE}</td>
                     <td className="border p-2">{item.Esperado}</td>
@@ -128,4 +144,4 @@ function Materiais() {
   );
 }
 
-export default Materiais;
+export default MateriaisApp;

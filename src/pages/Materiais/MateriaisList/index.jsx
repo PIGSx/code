@@ -1,11 +1,9 @@
+// src/pages/MateriaisList/index.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { LogOut, Upload, Search } from "lucide-react";
+import { Upload, Search } from "lucide-react";
+import { getToken, getRole } from "../../../utils/auth";
 
-export default function MateriaisApp() {
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [user, setUser] = useState(localStorage.getItem("user") || "");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+export default function MateriaisList() {
   const [materiais, setMateriais] = useState([]);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
@@ -15,56 +13,17 @@ export default function MateriaisApp() {
   const observer = useRef();
   const itemsPerPage = 15;
 
-  const AUTH_URL =
-    window.location.hostname === "localhost"
-      ? "http://127.0.0.1:5004"
-      : "https://auth.onrender.com";
-  const API_URL =
-    window.location.hostname === "localhost"
-      ? "http://127.0.0.1:5003"
-      : "https://materiais.onrender.com";
+  const token = getToken();
+  const role = getRole();
+  const API_URL = "http://127.0.0.1:5000";
 
-  // LOGIN
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`${AUTH_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", data.user);
-        setToken(data.token);
-        setUser(data.user);
-        setMessage("");
-        setUsername("");
-        setPassword("");
-      } else {
-        setMessage(data.message || "Usuário ou senha inválidos.");
-      }
-    } catch {
-      setMessage("Erro ao conectar com o servidor.");
-    }
-  };
-
-  // LOGOUT
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setToken("");
-    setUser("");
-  };
-
-  // FETCH MATERIAIS
+  // --- Hooks: fetch materiais ---
   const fetchMateriais = async () => {
     try {
       const res = await fetch(`${API_URL}/materiais`);
       const data = await res.json();
       setMateriais(data);
-    } catch {
+    } catch (err) {
       setMessage("Erro ao carregar materiais.");
     }
   };
@@ -73,47 +32,20 @@ export default function MateriaisApp() {
     fetchMateriais();
   }, []);
 
-  // UPLOAD (somente com token)
-  const handleUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (!token) {
-      setMessage("Você precisa estar logado para enviar planilhas.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch(`${API_URL}/upload`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json();
-      setMessage(data.message || data.error);
-      if (data.message) fetchMateriais();
-    } catch {
-      setMessage("Erro ao enviar arquivo.");
-    }
-  };
-
-  // FILTRO
+  // --- Filtro paginado ---
   const filtered = materiais.filter((m) => {
     const nome = String(m["Descrição Material SAP"] || "").toLowerCase();
     const codigo = String(m["Codigo Material SAP"] || "").toLowerCase();
     const cat = String(m["CATEGORIA"] || "");
     return (
-      (nome.includes(search.toLowerCase()) ||
-        codigo.includes(search.toLowerCase())) &&
+      (nome.includes(search.toLowerCase()) || codigo.includes(search.toLowerCase())) &&
       (categoria === "Todos" || cat === categoria)
     );
   });
 
   const paginated = filtered.slice(0, page * itemsPerPage);
 
+  // --- Infinite scroll ---
   const lastElementRef = useCallback(
     (node) => {
       if (loading) return;
@@ -132,56 +64,44 @@ export default function MateriaisApp() {
     [loading, filtered.length, paginated.length]
   );
 
-  const categorias = [
-    "Todos",
-    ...new Set(materiais.map((m) => m["CATEGORIA"]).filter(Boolean)),
-  ];
+  const categorias = ["Todos", ...new Set(materiais.map((m) => m["CATEGORIA"]).filter(Boolean))];
+
+  // --- Upload (admin apenas) ---
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`${API_URL}/upload_materiais`, {
+        method: "POST",
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
+        body: formData,
+      });
+      const data = await res.json();
+      setMessage(data.message || data.error);
+      if (data.message) fetchMateriais();
+    } catch {
+      setMessage("Erro ao enviar arquivo.");
+    }
+  };
+
+  // --- Bloqueio de acesso ---
+  if ((role || "").toLowerCase() !== "admin") {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen text-gray-400">
+        <p>Acesso restrito a administradores.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black text-gray-100 flex flex-col items-center py-10 px-4">
-      <div className="flex justify-between items-center w-full max-w-5xl mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-          Lista de Materiais
-        </h1>
-
-        {token ? (
-          <div className="flex items-center gap-3">
-            <span className="text-gray-300">Olá, {user}</span>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 bg-red-600/80 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-all"
-            >
-              <LogOut className="w-4 h-4" /> Sair
-            </button>
-          </div>
-        ) : (
-          <form
-            onSubmit={handleLogin}
-            className="flex gap-2 items-center bg-gray-800 p-2 rounded-xl shadow-md border border-gray-700"
-          >
-            <input
-              type="text"
-              placeholder="Usuário"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="px-3 py-1 bg-transparent border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring focus:ring-blue-500 outline-none"
-            />
-            <input
-              type="password"
-              placeholder="Senha"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="px-3 py-1 bg-transparent border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:ring focus:ring-blue-500 outline-none"
-            />
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition"
-            >
-              Entrar
-            </button>
-          </form>
-        )}
-      </div>
+      <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent mb-8">
+        Lista de Materiais
+      </h1>
 
       {/* Barra de Filtro */}
       <div className="w-full max-w-5xl mb-8 flex flex-col md:flex-row gap-4">
@@ -212,19 +132,17 @@ export default function MateriaisApp() {
         </select>
       </div>
 
-      {/* Upload */}
-      {token && (
-        <div className="w-full max-w-5xl mb-6 flex justify-between items-center">
-          <label className="flex items-center gap-2 cursor-pointer bg-green-600/80 hover:bg-green-700 px-4 py-2 rounded-lg transition-all">
-            <Upload className="w-5 h-5" />
-            <span>Enviar nova planilha</span>
-            <input type="file" onChange={handleUpload} className="hidden" />
-          </label>
-          {message && <p className="text-gray-400 text-sm">{message}</p>}
-        </div>
-      )}
+      {/* Upload somente admin */}
+      <div className="w-full max-w-5xl mb-6 flex justify-between items-center">
+        <label className="flex items-center gap-2 cursor-pointer bg-green-600/80 hover:bg-green-700 px-4 py-2 rounded-lg transition-all">
+          <Upload className="w-5 h-5" />
+          <span>Enviar nova planilha</span>
+          <input type="file" onChange={handleUpload} className="hidden" />
+        </label>
+        {message && <p className="text-gray-400 text-sm">{message}</p>}
+      </div>
 
-      {/* Lista */}
+      {/* Lista de materiais */}
       <div className="w-full max-w-5xl bg-gray-900/60 backdrop-blur-lg shadow-xl rounded-2xl border border-gray-800 divide-y divide-gray-800">
         {paginated.map((m, index) => {
           const isLast = index === paginated.length - 1;
@@ -235,12 +153,8 @@ export default function MateriaisApp() {
               className="py-4 px-4 hover:bg-gray-800/60 transition flex flex-col md:flex-row md:items-center md:justify-between"
             >
               <div>
-                <p className="text-gray-100 font-semibold">
-                  {m["Descrição Material SAP"]}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {m["Codigo Material SAP"]}
-                </p>
+                <p className="text-gray-100 font-semibold">{m["Descrição Material SAP"]}</p>
+                <p className="text-sm text-gray-500">{m["Codigo Material SAP"]}</p>
               </div>
               <span className="text-sm bg-blue-600/20 text-blue-300 px-3 py-1 rounded-full mt-2 md:mt-0 border border-blue-700/30">
                 {m["CATEGORIA"]}
@@ -248,11 +162,7 @@ export default function MateriaisApp() {
             </div>
           );
         })}
-        {loading && (
-          <p className="text-center text-gray-400 py-4 animate-pulse">
-            Carregando...
-          </p>
-        )}
+        {loading && <p className="text-center text-gray-400 py-4 animate-pulse">Carregando...</p>}
       </div>
     </div>
   );

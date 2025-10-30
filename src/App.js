@@ -1,6 +1,8 @@
-import Footer from './components/Footer';
-import './index.css';
-import RoutsPage from './router';
+// src/App.js
+import React from "react";
+import Footer from "./components/Footer";
+import "./index.css";
+import RoutsPage from "./router";
 
 function App() {
   return (

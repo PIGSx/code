@@ -1,13 +1,14 @@
+// src/pages/Pendente/index.jsx
 import React, { useState } from "react";
 import { LogOut, Lock, User, Upload } from "lucide-react";
+import { getToken, getRole, getUser, clearAuth } from "../../utils/auth";
 
-export default function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
+export default function Pendente() {
+  const [loggedIn, setLoggedIn] = useState(!!getToken());
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [token, setToken] = useState("");
   const [form, setForm] = useState({
     relatorio_fechados: null,
     planilha_prazos: null,
@@ -15,8 +16,9 @@ export default function App() {
     nome_do_relatorio: "",
   });
 
-  const AUTH_URL = "http://127.0.0.1:5004";
-  const PENDENTE_URL = "http://127.0.0.1:5002";
+  const token = getToken();
+  const role = getRole();
+  const API_URL = "http://127.0.0.1:5000";
 
   // LOGIN
   const handleLogin = async (e) => {
@@ -25,61 +27,70 @@ export default function App() {
     setMessage("");
 
     try {
-      const response = await fetch(`${AUTH_URL}/login`, {
+      const res = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-
-      const data = await response.json();
+      const data = await res.json();
 
       if (data.success && data.token) {
-        setLoggedIn(true);
-        setToken(data.token);
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("username", data.user);
+        localStorage.setItem("role", data.role);
         setMessage(`Bem-vindo, ${data.user}!`);
+        setLoggedIn(true);
       } else {
         setError(data.message || "Usuário ou senha inválidos.");
       }
-    } catch {
-      setError("Erro ao conectar com o servidor local (porta 5004).");
+    } catch (err) {
+      setError("Erro ao conectar com o servidor.");
     }
   };
 
-  // Muda texto ou arquivos
+  // HANDLE CHANGE DOS INPUTS
   const handleChange = (e) => {
     const { name, type, files, value } = e.target;
-    if (type === "file") {
-      setForm({ ...form, [name]: files[0] });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
+    if (type === "file") setForm({ ...form, [name]: files[0] });
+    else setForm({ ...form, [name]: value });
   };
 
-  // PROCESSAR e baixar arquivo
+  // PROCESSAR ARQUIVOS
   const handleProcess = async (e) => {
     e.preventDefault();
     setMessage("Enviando arquivos...");
 
+    if (!token) {
+      setMessage("Você precisa estar logado.");
+      return;
+    }
+
+    // Pendente pode ser usado por qualquer login comum
+    if (!form.relatorio_fechados) {
+      setMessage("Envie o arquivo principal.");
+      return;
+    }
+
     const formData = new FormData();
-    if (form.relatorio_fechados) formData.append("relatorio_fechados", form.relatorio_fechados);
+    formData.append("relatorio_fechados", form.relatorio_fechados);
     if (form.planilha_prazos) formData.append("planilha_prazos", form.planilha_prazos);
     if (form.pagina_guia) formData.append("pagina_guia", form.pagina_guia);
     formData.append("nome_do_relatorio", form.nome_do_relatorio || "saida.xlsx");
 
     try {
-      const response = await fetch(`${PENDENTE_URL}/process`, {
+      const res = await fetch(`${API_URL}/pendente/processar`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        setMessage(errorData.error || "Erro ao processar os arquivos.");
+      if (!res.ok) {
+        const data = await res.json();
+        setMessage(data.error || "Erro ao processar arquivos.");
         return;
       }
 
-      const blob = await response.blob();
+      const blob = await res.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
@@ -90,17 +101,15 @@ export default function App() {
       window.URL.revokeObjectURL(downloadUrl);
 
       setMessage("Arquivo processado e baixado com sucesso!");
-    } catch {
-      setMessage("Erro ao conectar com o servidor local (porta 5002).");
+    } catch (err) {
+      setMessage("Erro ao conectar com o servidor.");
     }
   };
 
   // LOGOUT
   const handleLogout = () => {
+    clearAuth();
     setLoggedIn(false);
-    setToken("");
-    setUsername("");
-    setPassword("");
     setForm({
       relatorio_fechados: null,
       planilha_prazos: null,
@@ -118,7 +127,6 @@ export default function App() {
             <h2 className="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
               Login
             </h2>
-
             {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}
             {message && <p className="text-green-400 text-sm text-center mb-4">{message}</p>}
 
@@ -168,24 +176,44 @@ export default function App() {
             </div>
 
             <form onSubmit={handleProcess} className="space-y-4">
-              {[
-                { name: "relatorio_fechados", label: "Relatório Fechados" },
-                { name: "planilha_prazos", label: "Planilha de Prazos" },
-                { name: "pagina_guia", label: "Página Guia" },
-              ].map(({ name, label }) => (
-                <div key={name} className="flex flex-col">
-                  <label className="text-sm text-gray-400 mb-1">{label}</label>
-                  <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
-                    <Upload className="w-4 h-4 text-gray-500" />
-                    <input
-                      type="file"
-                      name={name}
-                      onChange={handleChange}
-                      className="text-sm text-gray-300 file:hidden focus:outline-none"
-                    />
-                  </div>
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-400 mb-1">Relatório Fechados</label>
+                <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                  <Upload className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="file"
+                    name="relatorio_fechados"
+                    onChange={handleChange}
+                    className="text-sm text-gray-300 file:hidden focus:outline-none"
+                  />
                 </div>
-              ))}
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-400 mb-1">Planilha de Prazos</label>
+                <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                  <Upload className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="file"
+                    name="planilha_prazos"
+                    onChange={handleChange}
+                    className="text-sm text-gray-300 file:hidden focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-400 mb-1">Página Guia</label>
+                <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                  <Upload className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="file"
+                    name="pagina_guia"
+                    onChange={handleChange}
+                    className="text-sm text-gray-300 file:hidden focus:outline-none"
+                  />
+                </div>
+              </div>
 
               <input
                 type="text"

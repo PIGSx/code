@@ -1,63 +1,91 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+// src/pages/PowerBI/Rastreador.jsx
+import React, { useState, useEffect } from "react";
+import { getRole, getToken, clearAuth } from "../../../utils/auth";
 
-function Rastreador() {
-  const [mensagem, setMensagem] = useState("Abrindo site...");
-  const [status, setStatus] = useState("loading"); // 'loading' | 'success' | 'error'
+export default function Rastreador() {
+  const [mensagem, setMensagem] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const token = getToken();
+  const API_URL = "http://127.0.0.1:5000";
 
   useEffect(() => {
-    const abrir = async () => {
-      const API_URL =
-        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-          ? "http://localhost:5001"
-          : "https://code-rastreador.onrender.com";
-
-      try {
-        const response = await axios.post(`${API_URL}/abrir-site`);
-        setMensagem(response.data.mensagem);
-        setStatus("success");
-      } catch (error) {
-        setMensagem("Erro: " + (error.response?.data?.mensagem || error.message));
-        setStatus("error");
-      }
-    };
-
-    abrir();
+    const role = getRole();
+    setIsAdmin(role === "admin");
   }, []);
 
+  const handleAbrirSite = async () => {
+    if (!token || !isAdmin) {
+      setMensagem("🚫 Apenas administradores podem executar o rastreador.");
+      return;
+    }
+
+    setMensagem("");
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/rastreador/login`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "success") setMensagem(`✅ ${data.mensagem}`);
+      else setMensagem(`❌ Erro: ${data.mensagem || "Falha ao acessar o site"}`);
+    } catch (err) {
+      setMensagem("❌ Erro ao conectar com o servidor");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearAuth();
+    window.location.href = "/login";
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white px-6">
-      <div className="max-w-md w-full bg-gray-800/60 backdrop-blur-md rounded-2xl shadow-xl p-8 border border-gray-700">
-        <h2 className="text-2xl font-semibold mb-4 text-center">
-          Acesso Automático
-        </h2>
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black text-gray-100 flex flex-col items-center justify-center px-4">
+      <h1 className="text-3xl font-extrabold mb-6 text-center bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+        Rastreador Automático
+      </h1>
 
-        <div className="flex flex-col items-center justify-center text-center space-y-3">
-          {status === "loading" && (
-            <>
-              <Loader2 className="animate-spin text-blue-400 w-10 h-10" />
-              <p className="text-gray-300 animate-pulse">{mensagem}</p>
-            </>
-          )}
+      <p className="text-gray-400 mb-8 text-center max-w-md">
+        Essa função realiza login automático no sistema externo de rastreamento.
+      </p>
 
-          {status === "success" && (
-            <>
-              <CheckCircle2 className="text-green-400 w-10 h-10" />
-              <p className="text-green-300">{mensagem}</p>
-            </>
-          )}
+      {isAdmin ? (
+        <button
+          onClick={handleAbrirSite}
+          disabled={loading}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg shadow-lg transition disabled:opacity-50"
+        >
+          {loading ? "Acessando o site..." : "Iniciar Rastreador"}
+        </button>
+      ) : (
+        <p className="text-red-500 font-medium">
+          🚫 Acesso restrito — apenas administradores podem executar o rastreador.
+        </p>
+      )}
 
-          {status === "error" && (
-            <>
-              <XCircle className="text-red-400 w-10 h-10" />
-              <p className="text-red-300">{mensagem}</p>
-            </>
-          )}
+      <button
+        onClick={handleLogout}
+        className="mt-6 text-red-400 hover:text-red-500 transition"
+      >
+        Sair
+      </button>
+
+      {mensagem && (
+        <div
+          className={`mt-8 text-center text-sm px-4 py-3 rounded-lg ${
+            mensagem.startsWith("✅")
+              ? "bg-green-900/40 text-green-400"
+              : "bg-red-900/40 text-red-400"
+          }`}
+        >
+          {mensagem}
         </div>
-      </div>
+      )}
     </div>
   );
 }
-
-export default Rastreador;
