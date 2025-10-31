@@ -1,7 +1,7 @@
 // src/pages/Pendente/index.jsx
 import React, { useState } from "react";
 import { LogOut, Lock, User, Upload } from "lucide-react";
-import { getToken, getRole, getUser, clearAuth } from "../../utils/auth";
+import { getToken, getRole, clearAuth } from "../../utils/auth";
 
 export default function Pendente() {
   const [loggedIn, setLoggedIn] = useState(!!getToken());
@@ -65,7 +65,6 @@ export default function Pendente() {
       return;
     }
 
-    // Pendente pode ser usado por qualquer login comum
     if (!form.relatorio_fechados) {
       setMessage("Envie o arquivo principal.");
       return;
@@ -163,16 +162,10 @@ export default function Pendente() {
           </>
         ) : (
           <>
-            <div className="flex justify-between items-center mb-6">
+            <div className="mb-6">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-300 bg-clip-text text-transparent">
                 Processar Arquivos
               </h2>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 text-red-400 hover:text-red-500 transition"
-              >
-                <LogOut className="w-4 h-4" /> Sair
-              </button>
             </div>
 
             <form onSubmit={handleProcess} className="space-y-4">

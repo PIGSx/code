@@ -1,4 +1,3 @@
-// src/pages/PowerBI/Rastreador.jsx
 import React, { useState, useEffect } from "react";
 import { getRole, getToken, clearAuth } from "../../../utils/auth";
 
@@ -25,14 +24,34 @@ export default function Rastreador() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/rastreador/login`, {
+      const res = await fetch(`${API_URL}/rastreador/abrir-site`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
+
       const data = await res.json();
-      if (res.ok && data.status === "success") setMensagem(`✅ ${data.mensagem}`);
-      else setMensagem(`❌ Erro: ${data.mensagem || "Falha ao acessar o site"}`);
+
+      if (res.ok && data.status === "success") {
+        setMensagem("✅ Login feito no servidor. Tentando abrir site no seu navegador...");
+
+        // abre aba do usuário
+        const win = window.open("https://web.hapolo.com.br/", "_blank");
+
+        // tenta injetar cookies (só funciona em condições específicas)
+        if (data.cookies && data.cookies.length) {
+          data.cookies.forEach(c => {
+            try {
+              win.document.cookie = `${c.name}=${c.value}; path=${c.path || "/" };`;
+            } catch (e) {
+              console.warn("Não foi possível aplicar cookie no navegador do usuário", c, e);
+            }
+          });
+        }
+      } else {
+        setMensagem(data.mensagem || "❌ Falha ao executar o rastreador");
+      }
     } catch (err) {
+      console.error(err);
       setMensagem("❌ Erro ao conectar com o servidor");
     } finally {
       setLoading(false);
@@ -51,7 +70,7 @@ export default function Rastreador() {
       </h1>
 
       <p className="text-gray-400 mb-8 text-center max-w-md">
-        Essa função realiza login automático no sistema externo de rastreamento.
+        Essa função realiza login automático no sistema externo de rastreamento (servidor usa Chrome).
       </p>
 
       {isAdmin ? (
@@ -60,7 +79,7 @@ export default function Rastreador() {
           disabled={loading}
           className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg shadow-lg transition disabled:opacity-50"
         >
-          {loading ? "Acessando o site..." : "Iniciar Rastreador"}
+          {loading ? "Executando automação..." : "Abrir site já logado"}
         </button>
       ) : (
         <p className="text-red-500 font-medium">

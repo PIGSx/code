@@ -267,8 +267,10 @@ def process_pendente():
 
 
 # ------------------------
-# --- RASTREADOR ----------
+# --- RASTREADOR (Chrome-only) ----------
 # ------------------------
+from selenium.webdriver.chrome.options import Options
+
 @app.route('/rastreador/abrir-site', methods=['POST'])
 def rastreador_abrir_site():
     info, err_resp, status = check_token()
@@ -279,26 +281,37 @@ def rastreador_abrir_site():
         return jsonify({"status": "error", "mensagem": "Acesso negado: somente administradores"}), 403
 
     try:
-        options = webdriver.ChromeOptions()
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--window-size=1920,1080')
+        # configurações do Chrome
+        opts = Options()
+        opts.add_argument('--no-sandbox')
+        opts.add_argument('--disable-dev-shm-usage')
+        opts.add_argument('--headless')  # headless no servidor
+        opts.add_argument('--disable-gpu')
+        opts.add_argument('--window-size=1920,1080')
+        opts.add_argument('--disable-blink-features=AutomationControlled')
+        opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+        opts.add_experimental_option("useAutomationExtension", False)
 
-        navegador = webdriver.Chrome(options=options)
+        navegador = webdriver.Chrome(options=opts)
         try:
             navegador.get("https://web.hapolo.com.br/")
             navegador.find_element(By.XPATH, '/html/body/div/div/div/div/section/form[1]/div/div[1]/input').send_keys("psbltda")
             navegador.find_element(By.XPATH, '/html/body/div/div/div/div/section/form[1]/div/div[2]/input').send_keys("010203" + Keys.RETURN)
             time.sleep(3)
+
+            cookies = navegador.get_cookies()
             titulo = navegador.title
         finally:
             navegador.quit()
 
-        return jsonify({"status": "success", "mensagem": f"Login realizado com sucesso! Título: {titulo}"})
+        return jsonify({
+            "status": "success",
+            "mensagem": f"✅ Login feito no servidor! Página acessada: {titulo}",
+            "cookies": cookies
+        })
     except Exception as e:
-        return jsonify({"status": "error", "mensagem": str(e)}), 500
+        return jsonify({"status": "error", "mensagem": f"❌ Erro na execução do Selenium/Chrome: {str(e)}"}), 500
+
 
 
 # ------------------------

@@ -11,11 +11,11 @@ function MateriaisApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // 🚫 Bloqueia acesso se não for admin
-  if (role !== "admin") {
+  // 🚫 Bloqueia apenas se não estiver logado
+  if (!role) {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-gray-400">
-        <p>Acesso restrito a administradores.</p>
+        <p>Você precisa estar logado para acessar esta página.</p>
       </div>
     );
   }
@@ -38,7 +38,7 @@ function MateriaisApp() {
       const response = await fetch(`${API_URL}/api/processar`, {
         method: "POST",
         headers: {
-          ...authHeaders(), // usa o helper padrão do utils/auth.js
+          ...authHeaders(), // mantém a autenticação
         },
         body: formData,
       });
@@ -126,9 +126,7 @@ function MateriaisApp() {
                     <td className="border p-2">{item.Extras}</td>
                     <td
                       className={`border p-2 font-bold ${
-                        item.Status === "OK"
-                          ? "text-green-400"
-                          : "text-red-500"
+                        item.Status === "OK" ? "text-green-400" : "text-red-500"
                       }`}
                     >
                       {item.Status}

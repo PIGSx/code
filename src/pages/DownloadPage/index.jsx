@@ -4,31 +4,31 @@ import { Download, Lock } from "lucide-react";
 export default function DownloadPage() {
   const [files] = useState([
     {
-      title: "TECHNOBLADE",
-      filename: "tech.zip",
+      title: "Apoio - prazo",
+      filename: "apoioprazo.xlsx",
       uploadedAgo: "2m ago",
-      size: "12.4 MB",
-      type: "zip",
-      url: "https://example.com/downloads/planetaria-ios-app.zip",
+      size: "28 kb",
+      type: "xlsx",
+      url: "/downloads/apoioprazo.xlsx",
       status: true,
     },
     {
-  title: "pendente CMNSP",
-  filename: "pendente.xls",
-  uploadedAt: "2025-08-05T23:10:00Z",
-  size: "12 mb",
-  type: "xls",
-  url: "#",
-  status: false
+  title: "Pagina Guia",
+  filename: "guia.xlsx",
+  uploadedAt: "1m ago",
+  size: "2.09 mb",
+  type: "xlsx",
+  url: "/downloads/PAGINAGUIA.xlsx",
+  status: true
 },
     {
-      title: "the minecraft world",
+      title: "Documentação Technoblade",
       filename: "doc.pdf",
-      uploadedAgo: "10m ago",
+      uploadedAgo: "",
       size: "6.2 MB",
       type: "pdf",
-      url: "https://example.com/downloads/tailwind-docs.pdf",
-      status: true,
+      url: "",
+      status: false,
     },
   ]);
 

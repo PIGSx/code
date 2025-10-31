@@ -66,7 +66,7 @@ export default function MateriaisList() {
 
   const categorias = ["Todos", ...new Set(materiais.map((m) => m["CATEGORIA"]).filter(Boolean))];
 
-  // --- Upload (admin apenas) ---
+  // --- Upload (apenas admin) ---
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -87,15 +87,6 @@ export default function MateriaisList() {
       setMessage("Erro ao enviar arquivo.");
     }
   };
-
-  // --- Bloqueio de acesso ---
-  if ((role || "").toLowerCase() !== "admin") {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen text-gray-400">
-        <p>Acesso restrito a administradores.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black text-gray-100 flex flex-col items-center py-10 px-4">
@@ -133,14 +124,16 @@ export default function MateriaisList() {
       </div>
 
       {/* Upload somente admin */}
-      <div className="w-full max-w-5xl mb-6 flex justify-between items-center">
-        <label className="flex items-center gap-2 cursor-pointer bg-green-600/80 hover:bg-green-700 px-4 py-2 rounded-lg transition-all">
-          <Upload className="w-5 h-5" />
-          <span>Enviar nova planilha</span>
-          <input type="file" onChange={handleUpload} className="hidden" />
-        </label>
-        {message && <p className="text-gray-400 text-sm">{message}</p>}
-      </div>
+      {role?.toLowerCase() === "admin" && (
+        <div className="w-full max-w-5xl mb-6 flex justify-between items-center">
+          <label className="flex items-center gap-2 cursor-pointer bg-green-600/80 hover:bg-green-700 px-4 py-2 rounded-lg transition-all">
+            <Upload className="w-5 h-5" />
+            <span>Enviar nova planilha</span>
+            <input type="file" onChange={handleUpload} className="hidden" />
+          </label>
+          {message && <p className="text-gray-400 text-sm">{message}</p>}
+        </div>
+      )}
 
       {/* Lista de materiais */}
       <div className="w-full max-w-5xl bg-gray-900/60 backdrop-blur-lg shadow-xl rounded-2xl border border-gray-800 divide-y divide-gray-800">
