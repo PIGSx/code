@@ -1,4 +1,3 @@
-# main.py
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import pandas as pd
@@ -7,8 +6,10 @@ import uuid
 import time
 import os
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -30,7 +31,6 @@ TOKEN_EXPIRATION = 3600  # 1 hora
 def home():
     return jsonify({"status": "API unificada rodando 🚀"})
 
-
 @app.route("/login", methods=["POST"])
 def login():
     data = request.json or {}
@@ -49,7 +49,6 @@ def login():
 
     return jsonify({"success": False, "message": "Usuário ou senha inválidos"}), 401
 
-
 @app.route("/logout", methods=["POST"])
 def logout():
     data = request.json or {}
@@ -58,7 +57,6 @@ def logout():
         del active_tokens[token]
         return jsonify({"success": True, "message": "Logout realizado"}), 200
     return jsonify({"success": False, "message": "Token não encontrado"}), 404
-
 
 @app.route("/current_user", methods=["POST"])
 def current_user():
@@ -72,7 +70,6 @@ def current_user():
         return jsonify({"logged_in": False, "message": "Token expirado"}), 401
     return jsonify({"logged_in": True, "user": info["user"], "role": info["role"]}), 200
 
-
 def check_token():
     token_header = request.headers.get("Authorization")
     if not token_header or not token_header.startswith("Bearer "):
@@ -85,7 +82,6 @@ def check_token():
         del active_tokens[token]
         return None, jsonify({"error": "Token expirado"}), 403
     return info, None, None
-
 
 # ------------------------
 # --- MATERIAIS ----------
@@ -103,7 +99,6 @@ def listar_materiais():
         return jsonify(materiais), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/upload_materiais", methods=["POST"])
 def upload_excel():
@@ -126,7 +121,6 @@ def upload_excel():
         return jsonify({"message": "Planilha atualizada com sucesso ✅"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/processar_materiais", methods=["POST"])
 def processar_materiais():
@@ -166,8 +160,8 @@ def processar_materiais():
                 "TSE": tse,
                 "Esperado": str(materiais_esperados),
                 "Lançado": str(materiais_lancados),
-                "Faltando": str(faltando) if faltando else "-",
-                "Extras": str(extras) if extras else "-",
+                "Faltando": str(faltando) if faltando else "–",
+                "Extras": str(extras) if extras else "–",
                 "Status": status
             }
 
@@ -176,101 +170,9 @@ def processar_materiais():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-
 # ------------------------
-# --- PENDENTE -----------
+# --- RASTREADOR ---------
 # ------------------------
-def process_data_pendente(planilha_file, planilha_prazos_file=None, logradouro_file=None):
-    try:
-        df = pd.read_excel(planilha_file)
-        columns_to_drop = [
-            "Nome da Origem","Unidade Executante","Código TSS","Prioridade","Equipe","PDE","Município",
-            "Cod. Município","Setor","Rota","Quadra","Local","Vila","SubLocal","ATO","Área de Serviço",
-            "Grupo de Faturamento","Data Inserção","Data Agendada","Prazo de Execução","Notas de Acatamento","Arsesp"
-        ]
-        df = df.drop(columns=columns_to_drop, errors='ignore')
-        df = df[~df['Família'].isin(['FISCALIZAÇÃO','VISTORIA'])]
-        df = df[~df['Contrato'].isin([
-            '4600042975 - CONSORCIO MANUTENÇÃO SUZANO ZC',
-            '4600054507 - ENOPS ENGENHARIA S/A.',
-            '4600054538 - CONSÓRCIO LEITURA ITAQUERA',
-            '4600057156 - CONSORCIO DARWIN TB LESTE',
-            '4600060030 - CONSÓRCIO AMPLIA REDE LESTE',
-            '4600060107 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ',
-            '4600060108 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ',
-            '9999999999 - SABESP'
-        ])]
-        df['ATC'] = df['ATC'].astype(str).str.extract(r'(\d+)')[0].fillna('')
-        df = df[df['Descrição TSS'] != 'TROCAR HIDRÔMETRO PREVENTIVA AGENDADA']
-
-        if 'Data de Competência' in df.columns:
-            df['Data de Competência'] = pd.to_datetime(df['Data de Competência'], errors='coerce')
-
-        if planilha_prazos_file:
-            df_nomes_prazos = pd.read_excel(planilha_prazos_file)
-            df = pd.merge(df, df_nomes_prazos[['Descrição TSS','PRAZO (HORAS)']],
-                          on='Descrição TSS', how='left')
-
-        if logradouro_file:
-            df_logradouro = pd.read_excel(logradouro_file)
-            if 'Logradouro' in df_logradouro.columns:
-                df = pd.merge(df, df_logradouro[['Logradouro','Página Guia']],
-                              left_on='Endereço', right_on='Logradouro', how='left')
-            df = df.drop(columns=['Logradouro'], errors='ignore')
-
-        if 'Número' in df.columns and 'Complemento' in df.columns:
-            df['Endereço'] = (df['Endereço'].fillna('').str.strip() + ' ' +
-                              df['Número'].fillna('').astype(str) + ' ' +
-                              df['Complemento'].fillna('').astype(str)).str.strip()
-            df = df.drop(columns=['Número','Complemento'], errors='ignore')
-
-        if 'PRAZO (HORAS)' in df.columns and 'Data de Competência' in df.columns:
-            df['Data Final'] = df['Data de Competência'] + pd.to_timedelta(df['PRAZO (HORAS)'], unit='h')
-
-        columns_order = ['Status','Número OS','ATC','Endereço','Bairro','Página Guia','Data de Competência','Data Final',
-                         'Descrição TSS','PRAZO (HORAS)','Contrato','Causa','Resultado']
-        available_columns = [col for col in columns_order if col in df.columns]
-        df = df[available_columns]
-
-        output_stream = io.BytesIO()
-        df.to_excel(output_stream, index=False, engine='openpyxl')
-        output_stream.seek(0)
-        return output_stream
-    except Exception as e:
-        return str(e)
-
-
-@app.route("/pendente/processar", methods=["POST"])
-def process_pendente():
-    info, err_resp, status = check_token()
-    if err_resp:
-        return err_resp, status
-
-    planilha_file = request.files.get("relatorio_fechados")
-    planilha_prazos_file = request.files.get("planilha_prazos")
-    logradouro_file = request.files.get("pagina_guia")
-    nome_do_relatorio = request.form.get("nome_do_relatorio") or "saida.xlsx"
-
-    if not planilha_file:
-        return jsonify({"error": "Nenhum arquivo principal enviado"}), 400
-
-    processed_stream = process_data_pendente(planilha_file, planilha_prazos_file, logradouro_file)
-    if isinstance(processed_stream, str):
-        return jsonify({"error": processed_stream}), 500
-
-    return send_file(
-        processed_stream,
-        as_attachment=True,
-        download_name=nome_do_relatorio,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-
-# ------------------------
-# --- RASTREADOR (Chrome-only) ----------
-# ------------------------
-from selenium.webdriver.chrome.options import Options
-
 @app.route('/rastreador/abrir-site', methods=['POST'])
 def rastreador_abrir_site():
     info, err_resp, status = check_token()
@@ -280,39 +182,38 @@ def rastreador_abrir_site():
     if info["role"] != "admin":
         return jsonify({"status": "error", "mensagem": "Acesso negado: somente administradores"}), 403
 
+    # Configurações do Selenium
     try:
-        # configurações do Chrome
-        opts = Options()
-        opts.add_argument('--no-sandbox')
-        opts.add_argument('--disable-dev-shm-usage')
-        opts.add_argument('--headless')  # headless no servidor
-        opts.add_argument('--disable-gpu')
-        opts.add_argument('--window-size=1920,1080')
-        opts.add_argument('--disable-blink-features=AutomationControlled')
-        opts.add_experimental_option("excludeSwitches", ["enable-automation"])
-        opts.add_experimental_option("useAutomationExtension", False)
+        navegador = webdriver.Chrome()  # Inicia o navegador
+        navegador.maximize_window()  # Maximiza a janela do navegador
 
-        navegador = webdriver.Chrome(options=opts)
-        try:
-            navegador.get("https://web.hapolo.com.br/")
-            navegador.find_element(By.XPATH, '/html/body/div/div/div/div/section/form[1]/div/div[1]/input').send_keys("psbltda")
-            navegador.find_element(By.XPATH, '/html/body/div/div/div/div/section/form[1]/div/div[2]/input').send_keys("010203" + Keys.RETURN)
-            time.sleep(3)
+        # Acessa o site
+        navegador.get("https://web.hapolo.com.br/")
+        
+        # Espera e realiza login
+        WebDriverWait(navegador, 20).until(EC.presence_of_element_located((By.XPATH, '//*[@id="id_user"]')))
+        navegador.find_element(By.XPATH, '//*[@id="id_user"]').send_keys("psbltda")
+        navegador.find_element(By.XPATH, '//input[@name="password"]').send_keys("010203" + Keys.RETURN)
 
-            cookies = navegador.get_cookies()
-            titulo = navegador.title
-        finally:
-            navegador.quit()
+        # Espera até que o título da página seja alterado
+        WebDriverWait(navegador, 20).until(EC.title_contains('Título Esperado Depois do Login'))
+
+        # Obter cookies e título da página
+        cookies = navegador.get_cookies()
+        titulo = navegador.title
 
         return jsonify({
             "status": "success",
             "mensagem": f"✅ Login feito no servidor! Página acessada: {titulo}",
             "cookies": cookies
         })
+
     except Exception as e:
-        return jsonify({"status": "error", "mensagem": f"❌ Erro na execução do Selenium/Chrome: {str(e)}"}), 500
-
-
+        return jsonify({"status": "error", "mensagem": f"❌ Erro na execução do Selenium: {str(e)}"}), 500
+    
+    # Remove a linha que fecha o navegador
+    # finally:
+    #     navegador.quit()  # Garante que o navegador seja fechado
 
 # ------------------------
 # --- RUN -----------------
