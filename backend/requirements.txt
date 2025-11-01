@@ -1,6 +1,5 @@
-Flask
+flask
 flask-cors
 pandas
-openpyxl
-requests
 selenium
+openpyxl

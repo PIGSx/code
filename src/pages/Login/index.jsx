@@ -1,10 +1,8 @@
-// src/pages/Login/index.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearAuth } from "../../utils/auth";
 import { User, Lock } from "lucide-react";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import API_URL from "../../utils/api"; // ✅ Importando o novo utilitário
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -39,6 +37,7 @@ const LoginPage = () => {
         setError(data.message || "Usuário ou senha inválidos.");
       }
     } catch (err) {
+      console.error(err);
       setError("Erro ao conectar com o servidor.");
     } finally {
       setLoading(false);

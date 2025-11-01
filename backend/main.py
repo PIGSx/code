@@ -13,7 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})  # ✅ Permite acesso de qualquer origem (frontend local ou IP)
 
 # ------------------------
 # --- AUTENTICAÇÃO -------
@@ -182,23 +182,18 @@ def rastreador_abrir_site():
     if info["role"] != "admin":
         return jsonify({"status": "error", "mensagem": "Acesso negado: somente administradores"}), 403
 
-    # Configurações do Selenium
     try:
         navegador = webdriver.Chrome()  # Inicia o navegador
         navegador.maximize_window()  # Maximiza a janela do navegador
 
-        # Acessa o site
         navegador.get("https://web.hapolo.com.br/")
         
-        # Espera e realiza login
         WebDriverWait(navegador, 20).until(EC.presence_of_element_located((By.XPATH, '//*[@id="id_user"]')))
         navegador.find_element(By.XPATH, '//*[@id="id_user"]').send_keys("psbltda")
         navegador.find_element(By.XPATH, '//input[@name="password"]').send_keys("010203" + Keys.RETURN)
 
-        # Espera até que o título da página seja alterado
         WebDriverWait(navegador, 20).until(EC.title_contains('Título Esperado Depois do Login'))
 
-        # Obter cookies e título da página
         cookies = navegador.get_cookies()
         titulo = navegador.title
 
@@ -210,14 +205,16 @@ def rastreador_abrir_site():
 
     except Exception as e:
         return jsonify({"status": "error", "mensagem": f"❌ Erro na execução do Selenium: {str(e)}"}), 500
-    
-    # Remove a linha que fecha o navegador
-    # finally:
-    #     navegador.quit()  # Garante que o navegador seja fechado
 
 # ------------------------
 # --- RUN -----------------
 # ------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    print(f"🚀 Servidor rodando em: http://localhost:{port}")
+    try:
+        ip_local = os.popen("hostname -I").read().strip().split()[0]
+        print(f"🌐 Acesse via rede: http://{ip_local}:{port}")
+    except:
+        pass
     app.run(host="0.0.0.0", port=port, debug=True)

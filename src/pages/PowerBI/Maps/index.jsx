@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getRole, getToken, clearAuth } from "../../../utils/auth";
+import API_URL from "../../../utils/api"; // ✅ Importa a URL dinâmica
 
 export default function Rastreador() {
   const [mensagem, setMensagem] = useState("");
@@ -7,7 +8,6 @@ export default function Rastreador() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const token = getToken();
-  const API_URL = "http://127.0.0.1:5000";
 
   useEffect(() => {
     const role = getRole();
@@ -34,10 +34,10 @@ export default function Rastreador() {
       if (res.ok && data.status === "success") {
         setMensagem("✅ Login feito no servidor. Tentando abrir site no seu navegador...");
 
-        // abre aba do usuário
+        // Abre aba do usuário
         const win = window.open("https://web.hapolo.com.br/", "_blank");
 
-        // tenta injetar cookies (só funciona em condições específicas)
+        // Tenta injetar cookies (só funciona em condições específicas)
         if (data.cookies && data.cookies.length) {
           data.cookies.forEach(c => {
             try {

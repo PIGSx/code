@@ -1,7 +1,7 @@
-// src/pages/Pendente/index.jsx
 import React, { useState } from "react";
 import { LogOut, Lock, User, Upload } from "lucide-react";
 import { getToken, getRole, clearAuth } from "../../utils/auth";
+import API_URL from "../../utils/api"; // ✅ agora usa o arquivo centralizado
 
 export default function Pendente() {
   const [loggedIn, setLoggedIn] = useState(!!getToken());
@@ -18,7 +18,6 @@ export default function Pendente() {
 
   const token = getToken();
   const role = getRole();
-  const API_URL = "http://127.0.0.1:5000";
 
   // LOGIN
   const handleLogin = async (e) => {
@@ -99,8 +98,9 @@ export default function Pendente() {
       link.remove();
       window.URL.revokeObjectURL(downloadUrl);
 
-      setMessage("Arquivo processado e baixado com sucesso!");
+      setMessage("✅ Arquivo processado e baixado com sucesso!");
     } catch (err) {
+      console.error(err);
       setMessage("Erro ao conectar com o servidor.");
     }
   };
@@ -162,10 +162,17 @@ export default function Pendente() {
           </>
         ) : (
           <>
-            <div className="mb-6">
+            <div className="mb-6 flex justify-between items-center">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-300 bg-clip-text text-transparent">
                 Processar Arquivos
               </h2>
+              <button
+                onClick={handleLogout}
+                className="text-red-400 hover:text-red-500 transition"
+                title="Sair"
+              >
+                <LogOut size={20} />
+              </button>
             </div>
 
             <form onSubmit={handleProcess} className="space-y-4">

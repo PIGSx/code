@@ -1,7 +1,7 @@
-// src/pages/MateriaisList/index.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Upload, Search } from "lucide-react";
 import { getToken, getRole } from "../../../utils/auth";
+import API_URL from "../../../utils/api"; // ✅ agora vem do arquivo central
 
 export default function MateriaisList() {
   const [materiais, setMateriais] = useState([]);
@@ -15,16 +15,16 @@ export default function MateriaisList() {
 
   const token = getToken();
   const role = getRole();
-  const API_URL = "http://127.0.0.1:5000";
 
-  // --- Hooks: fetch materiais ---
+  // --- Fetch materiais ---
   const fetchMateriais = async () => {
     try {
       const res = await fetch(`${API_URL}/materiais`);
+      if (!res.ok) throw new Error("Erro ao carregar materiais.");
       const data = await res.json();
       setMateriais(data);
     } catch (err) {
-      setMessage("Erro ao carregar materiais.");
+      setMessage("❌ Erro ao carregar materiais.");
     }
   };
 
@@ -66,7 +66,7 @@ export default function MateriaisList() {
 
   const categorias = ["Todos", ...new Set(materiais.map((m) => m["CATEGORIA"]).filter(Boolean))];
 
-  // --- Upload (apenas admin) ---
+  // --- Upload (somente admin) ---
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -80,11 +80,12 @@ export default function MateriaisList() {
         headers: { Authorization: token ? `Bearer ${token}` : "" },
         body: formData,
       });
+
       const data = await res.json();
       setMessage(data.message || data.error);
       if (data.message) fetchMateriais();
     } catch {
-      setMessage("Erro ao enviar arquivo.");
+      setMessage("❌ Erro ao enviar arquivo.");
     }
   };
 

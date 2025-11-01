@@ -1,7 +1,7 @@
 // src/components/Navbar/index.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import api from "../../utils/api"; // ✅ Importando API centralizada
 import ModalAutoinicializacao from "../Modal";
 
 const Navbar = () => {
@@ -16,13 +16,13 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const stopRef = useRef(false); // Para controlar quando parar o loop
-  const API_URL = "http://localhost:5000";
+  const stopRef = useRef(false); // controla parada do loop
 
   useEffect(() => {
     setValidating(true);
     if (token) {
-      axios.post(`${API_URL}/current_user`, { token })
+      api
+        .post("/current_user", { token })
         .then((res) => {
           if (res.data.logged_in) setUser(res.data.user);
           else setUser(null);
@@ -37,7 +37,7 @@ const Navbar = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`${API_URL}/login`, loginForm);
+      const res = await api.post("/login", loginForm);
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("username", res.data.user);
@@ -55,7 +55,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post(`${API_URL}/logout`, { token });
+      await api.post("/logout", { token });
     } catch {}
     localStorage.removeItem("token");
     localStorage.removeItem("username");
@@ -65,7 +65,7 @@ const Navbar = () => {
     navigate("/login");
   };
 
-  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const startAutoinicializacao = async (abasSelecionadas, subCardsSelecionados, tempo, loop) => {
     setAutoinicializacaoAtiva(true);
@@ -135,7 +135,9 @@ const Navbar = () => {
   return (
     <header className="bg-gray-900 shadow-lg relative z-50">
       <nav className="container mx-auto flex justify-between items-center p-4">
-        <Link to="/" className="text-2xl font-bold text-purple-400">TECHNOBLADE</Link>
+        <Link to="/" className="text-2xl font-bold text-purple-400">
+          TECHNOBLADE
+        </Link>
 
         <ul className="hidden md:flex space-x-6 items-center">
           <li>
@@ -241,7 +243,7 @@ const Navbar = () => {
         </div>
       )}
 
-      {/* Botão flutuante de parar autoinicialização */}
+      {/* Botão flutuante */}
       {autoinicializacaoAtiva && (
         <button
           onClick={stopAutoinicializacao}
@@ -263,7 +265,9 @@ const Navbar = () => {
                 placeholder="Usuário"
                 className="border border-gray-600 bg-gray-700 p-2 rounded text-gray-200 placeholder-gray-400 focus:ring focus:ring-purple-500 outline-none"
                 value={loginForm.username}
-                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                onChange={(e) =>
+                  setLoginForm({ ...loginForm, username: e.target.value })
+                }
                 required
               />
               <input
@@ -271,13 +275,22 @@ const Navbar = () => {
                 placeholder="Senha"
                 className="border border-gray-600 bg-gray-700 p-2 rounded text-gray-200 placeholder-gray-400 focus:ring focus:ring-purple-500 outline-none"
                 value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                onChange={(e) =>
+                  setLoginForm({ ...loginForm, password: e.target.value })
+                }
                 required
               />
-              <button type="submit" className="py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition">
+              <button
+                type="submit"
+                className="py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition"
+              >
                 Entrar
               </button>
-              <button type="button" onClick={() => setShowLoginModal(false)} className="py-2 bg-gray-600 hover:bg-gray-700 rounded text-gray-200 transition">
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(false)}
+                className="py-2 bg-gray-600 hover:bg-gray-700 rounded text-gray-200 transition"
+              >
                 Cancelar
               </button>
             </form>

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { getRole, authHeaders } from "../../../utils/auth";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+import API_URL from "../../../utils/api"; // ✅ centralizado aqui
 
 function MateriaisApp() {
   const role = getRole();
@@ -11,7 +10,7 @@ function MateriaisApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // 🚫 Bloqueia apenas se não estiver logado
+  // 🚫 Bloqueia se não estiver logado
   if (!role) {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-gray-400">
@@ -37,13 +36,11 @@ function MateriaisApp() {
 
       const response = await fetch(`${API_URL}/api/processar`, {
         method: "POST",
-        headers: {
-          ...authHeaders(), // mantém a autenticação
-        },
+        headers: authHeaders(), // ✅ mantém autenticação correta
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Erro ao processar arquivos");
+      if (!response.ok) throw new Error("Erro ao processar arquivos.");
 
       const data = await response.json();
       setResultado(data);
