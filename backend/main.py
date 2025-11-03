@@ -13,8 +13,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # ✅ Permite acesso de qualquer origem (frontend local ou IP)
-
+CORS(
+    app,
+    resources={r"/*": {"origins": ["https://technoblade.shop"]}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"]
+)
 # ------------------------
 # --- AUTENTICAÇÃO -------
 # ------------------------

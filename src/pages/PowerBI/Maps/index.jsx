@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { getRole, getToken, clearAuth } from "../../../utils/auth";
-import API_URL from "../../../utils/api"; // ✅ Importa a URL dinâmica
+import { getRole, clearAuth } from "../../../utils/auth";
+import api from "../../../utils/apiAxios"; // ✅ Novo cliente Axios com interceptores e baseURL dinâmica
 
 export default function Rastreador() {
   const [mensagem, setMensagem] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-
-  const token = getToken();
 
   useEffect(() => {
     const role = getRole();
@@ -15,7 +13,7 @@ export default function Rastreador() {
   }, []);
 
   const handleAbrirSite = async () => {
-    if (!token || !isAdmin) {
+    if (!isAdmin) {
       setMensagem("🚫 Apenas administradores podem executar o rastreador.");
       return;
     }
@@ -24,35 +22,35 @@ export default function Rastreador() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/rastreador/abrir-site`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // ✅ Agora usando a instância `apiAxios`, que já injeta o token automaticamente
+      const res = await api.post("/rastreador/abrir-site");
 
-      const data = await res.json();
-
-      if (res.ok && data.status === "success") {
+      if (res.data?.status === "success") {
         setMensagem("✅ Login feito no servidor. Tentando abrir site no seu navegador...");
 
-        // Abre aba do usuário
         const win = window.open("https://web.hapolo.com.br/", "_blank");
 
-        // Tenta injetar cookies (só funciona em condições específicas)
-        if (data.cookies && data.cookies.length) {
-          data.cookies.forEach(c => {
+        // ⚠️ Tentativa de aplicar cookies retornados (limitada pelo navegador)
+        if (res.data.cookies && res.data.cookies.length && win) {
+          res.data.cookies.forEach((c) => {
             try {
-              win.document.cookie = `${c.name}=${c.value}; path=${c.path || "/" };`;
+              win.document.cookie = `${c.name}=${c.value}; path=${c.path || "/"};`;
             } catch (e) {
               console.warn("Não foi possível aplicar cookie no navegador do usuário", c, e);
             }
           });
         }
       } else {
-        setMensagem(data.mensagem || "❌ Falha ao executar o rastreador");
+        setMensagem(res.data?.mensagem || "❌ Falha ao executar o rastreador.");
       }
     } catch (err) {
-      console.error(err);
-      setMensagem("❌ Erro ao conectar com o servidor");
+      console.error("❌ Erro ao executar rastreador:", err);
+      const msg =
+        err.response?.data?.mensagem ||
+        (err.code === "ERR_NETWORK"
+          ? "Servidor indisponível. Verifique sua conexão."
+          : "Erro ao conectar com o servidor.");
+      setMensagem(`❌ ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -70,7 +68,7 @@ export default function Rastreador() {
       </h1>
 
       <p className="text-gray-400 mb-8 text-center max-w-md">
-        Essa função realiza login automático no sistema externo de rastreamento (servidor usa Chrome).
+        Essa função realiza login automático no sistema externo de rastreamento (executado no servidor com Chrome headless).
       </p>
 
       {isAdmin ? (

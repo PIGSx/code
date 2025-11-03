@@ -1,11 +1,10 @@
-// src/components/Navbar/index.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import api from "../../utils/api"; // ✅ Importando API centralizada
+import api from "../../utils/apiAxios"; // ✅ usando a nova API centralizada
 import ModalAutoinicializacao from "../Modal";
 
 const Navbar = () => {
-  const [user, setUser] = useState(localStorage.getItem("token") ? localStorage.getItem("username") : null);
+  const [user, setUser] = useState(localStorage.getItem("username") || null);
   const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [validating, setValidating] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -16,24 +15,34 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const stopRef = useRef(false); // controla parada do loop
+  const stopRef = useRef(false);
 
+  // ✅ Validação automática de token
   useEffect(() => {
-    setValidating(true);
-    if (token) {
-      api
-        .post("/current_user", { token })
-        .then((res) => {
-          if (res.data.logged_in) setUser(res.data.user);
-          else setUser(null);
-        })
-        .catch(() => setUser(null))
-        .finally(() => setValidating(false));
-    } else {
-      setValidating(false);
-    }
+    const validarUsuario = async () => {
+      if (!token) {
+        setValidating(false);
+        return;
+      }
+      try {
+        const res = await api.post("/current_user", { token });
+        if (res.data?.logged_in) {
+          setUser(res.data.user);
+        } else {
+          setUser(null);
+          localStorage.clear();
+        }
+      } catch {
+        setUser(null);
+      } finally {
+        setValidating(false);
+      }
+    };
+
+    validarUsuario();
   }, [token]);
 
+  // ✅ Login manual via modal
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -49,31 +58,31 @@ const Navbar = () => {
         alert("Usuário ou senha inválidos!");
       }
     } catch {
-      alert("Erro no login!");
+      alert("Erro ao conectar com o servidor.");
     }
   };
 
+  // ✅ Logout
   const handleLogout = async () => {
     try {
       await api.post("/logout", { token });
     } catch {}
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("role");
+    localStorage.clear();
     setToken("");
     setUser(null);
     navigate("/login");
   };
 
+  // ✅ Função delay
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+  // ✅ Autoinicialização
   const startAutoinicializacao = async (abasSelecionadas, subCardsSelecionados, tempo, loop) => {
     setAutoinicializacaoAtiva(true);
     stopRef.current = false;
 
     const navegarAba = async (aba) => {
       if (stopRef.current) return;
-
       switch (aba) {
         case "materiais":
           navigate("/materiais");
@@ -101,12 +110,15 @@ const Navbar = () => {
               case "920":
                 navigate("/sm");
                 break;
+              default:
+                break;
             }
             await delay(tempo * 1000);
           }
           return;
+        default:
+          break;
       }
-
       await delay(tempo * 1000);
     };
 
@@ -139,6 +151,7 @@ const Navbar = () => {
           TECHNOBLADE
         </Link>
 
+        {/* Links Desktop */}
         <ul className="hidden md:flex space-x-6 items-center">
           <li>
             <span
@@ -150,16 +163,14 @@ const Navbar = () => {
           </li>
           {navItems.map((item, idx) => (
             <li key={idx}>
-              <Link
-                to={item.path}
-                className="text-gray-300 hover:text-purple-300 transition"
-              >
+              <Link to={item.path} className="text-gray-300 hover:text-purple-300 transition">
                 {item.label}
               </Link>
             </li>
           ))}
         </ul>
 
+        {/* Área de usuário */}
         <div className="hidden md:flex items-center space-x-4">
           {validating ? (
             <span className="text-gray-500 animate-pulse">Verificando login...</span>
@@ -183,6 +194,7 @@ const Navbar = () => {
           )}
         </div>
 
+        {/* Botão mobile */}
         <button
           className="md:hidden ml-4 text-2xl font-bold text-purple-400"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -191,7 +203,7 @@ const Navbar = () => {
         </button>
       </nav>
 
-      {/* Menu mobile */}
+      {/* Menu Mobile */}
       {menuOpen && (
         <div className="md:hidden bg-gray-800 border-t border-gray-700">
           <ul className="flex flex-col space-y-2 p-4">
@@ -265,9 +277,7 @@ const Navbar = () => {
                 placeholder="Usuário"
                 className="border border-gray-600 bg-gray-700 p-2 rounded text-gray-200 placeholder-gray-400 focus:ring focus:ring-purple-500 outline-none"
                 value={loginForm.username}
-                onChange={(e) =>
-                  setLoginForm({ ...loginForm, username: e.target.value })
-                }
+                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
                 required
               />
               <input
@@ -275,15 +285,10 @@ const Navbar = () => {
                 placeholder="Senha"
                 className="border border-gray-600 bg-gray-700 p-2 rounded text-gray-200 placeholder-gray-400 focus:ring focus:ring-purple-500 outline-none"
                 value={loginForm.password}
-                onChange={(e) =>
-                  setLoginForm({ ...loginForm, password: e.target.value })
-                }
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                 required
               />
-              <button
-                type="submit"
-                className="py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition"
-              >
+              <button type="submit" className="py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition">
                 Entrar
               </button>
               <button

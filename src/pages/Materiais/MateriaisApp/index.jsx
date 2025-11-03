@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { getRole, authHeaders } from "../../../utils/auth";
-import API_URL from "../../../utils/api"; // ✅ centralizado aqui
+import api from "../../../utils/apiAxios"; // ✅ usa o novo axios centralizado
+import { getRole } from "../../../utils/auth";
 
 function MateriaisApp() {
   const role = getRole();
@@ -34,19 +34,20 @@ function MateriaisApp() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_URL}/api/processar`, {
-        method: "POST",
-        headers: authHeaders(), // ✅ mantém autenticação correta
-        body: formData,
+      // ✅ Endpoint correto (de acordo com o backend Flask)
+      const res = await api.post("/processar_materiais", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      if (!response.ok) throw new Error("Erro ao processar arquivos.");
-
-      const data = await response.json();
-      setResultado(data);
+      setResultado(res.data);
     } catch (err) {
       console.error("❌ Erro ao enviar arquivos:", err);
-      setError(err.message);
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Erro desconhecido ao processar.";
+      setError(msg);
     } finally {
       setLoading(false);
     }

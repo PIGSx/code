@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearAuth } from "../../utils/auth";
 import { User, Lock } from "lucide-react";
-import API_URL from "../../utils/api"; // ✅ Importando o novo utilitário
+import api from "../../utils/apiAxios";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -14,31 +14,35 @@ const LoginPage = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!username.trim() || !password.trim()) {
+      setError("Preencha usuário e senha.");
+      return;
+    }
+
     clearAuth();
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+      const res = await api.post("/login", { username, password });
 
-      const data = await res.json();
+      if (res.data?.success && res.data?.token) {
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("username", res.data.user);
+        localStorage.setItem("role", res.data.role);
 
-      if (res.ok && data.success) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", data.user);
-        localStorage.setItem("role", data.role);
-
-        navigate("/");
-        window.location.reload();
+        navigate("/", { replace: true });
       } else {
-        setError(data.message || "Usuário ou senha inválidos.");
+        setError(res.data?.message || "Usuário ou senha inválidos.");
       }
     } catch (err) {
-      console.error(err);
-      setError("Erro ao conectar com o servidor.");
+      console.error("❌ Erro no login:", err);
+      const msg =
+        err.response?.data?.message ||
+        (err.code === "ERR_NETWORK"
+          ? "Servidor indisponível. Tente novamente."
+          : "Erro ao conectar com o servidor.");
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -54,7 +58,7 @@ const LoginPage = () => {
           Login
         </h1>
 
-        {/* Username */}
+        {/* Usuário */}
         <div className="relative">
           <User className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
           <input
@@ -67,7 +71,7 @@ const LoginPage = () => {
           />
         </div>
 
-        {/* Password */}
+        {/* Senha */}
         <div className="relative">
           <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
           <input

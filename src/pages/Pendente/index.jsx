@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { LogOut, Lock, User, Upload } from "lucide-react";
 import { getToken, getRole, clearAuth } from "../../utils/auth";
-import API_URL from "../../utils/api"; // ✅ agora usa o arquivo centralizado
+import api from "../../utils/apiAxios"; // ✅ novo cliente Axios centralizado
 
 export default function Pendente() {
   const [loggedIn, setLoggedIn] = useState(!!getToken());
@@ -19,55 +19,51 @@ export default function Pendente() {
   const token = getToken();
   const role = getRole();
 
-  // LOGIN
+  // --- LOGIN ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setMessage("");
 
     try {
-      const res = await fetch(`${API_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
+      const res = await api.post("/login", { username, password });
 
-      if (data.success && data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", data.user);
-        localStorage.setItem("role", data.role);
-        setMessage(`Bem-vindo, ${data.user}!`);
+      if (res.data?.success && res.data?.token) {
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("username", res.data.user);
+        localStorage.setItem("role", res.data.role);
+        setMessage(`Bem-vindo, ${res.data.user}!`);
         setLoggedIn(true);
       } else {
-        setError(data.message || "Usuário ou senha inválidos.");
+        setError(res.data?.message || "Usuário ou senha inválidos.");
       }
     } catch (err) {
-      setError("Erro ao conectar com o servidor.");
+      console.error("❌ Erro no login:", err);
+      const msg =
+        err.response?.data?.message ||
+        (err.code === "ERR_NETWORK"
+          ? "Servidor indisponível. Verifique sua conexão."
+          : "Erro ao conectar com o servidor.");
+      setError(msg);
     }
   };
 
-  // HANDLE CHANGE DOS INPUTS
+  // --- HANDLE INPUTS ---
   const handleChange = (e) => {
     const { name, type, files, value } = e.target;
-    if (type === "file") setForm({ ...form, [name]: files[0] });
-    else setForm({ ...form, [name]: value });
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "file" ? files[0] : value,
+    }));
   };
 
-  // PROCESSAR ARQUIVOS
+  // --- PROCESSAR ARQUIVOS ---
   const handleProcess = async (e) => {
     e.preventDefault();
     setMessage("Enviando arquivos...");
 
-    if (!token) {
-      setMessage("Você precisa estar logado.");
-      return;
-    }
-
-    if (!form.relatorio_fechados) {
-      setMessage("Envie o arquivo principal.");
-      return;
-    }
+    if (!token) return setMessage("Você precisa estar logado.");
+    if (!form.relatorio_fechados) return setMessage("Envie o arquivo principal.");
 
     const formData = new FormData();
     formData.append("relatorio_fechados", form.relatorio_fechados);
@@ -76,20 +72,17 @@ export default function Pendente() {
     formData.append("nome_do_relatorio", form.nome_do_relatorio || "saida.xlsx");
 
     try {
-      const res = await fetch(`${API_URL}/pendente/processar`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
+      const res = await api.post("/pendente/processar", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        responseType: "blob",
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        setMessage(data.error || "Erro ao processar arquivos.");
+      if (res.status !== 200) {
+        setMessage("Erro ao processar arquivos.");
         return;
       }
 
-      const blob = await res.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadUrl = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.setAttribute("download", form.nome_do_relatorio || "saida.xlsx");
@@ -100,12 +93,17 @@ export default function Pendente() {
 
       setMessage("✅ Arquivo processado e baixado com sucesso!");
     } catch (err) {
-      console.error(err);
-      setMessage("Erro ao conectar com o servidor.");
+      console.error("❌ Erro no processamento:", err);
+      const msg =
+        err.response?.data?.message ||
+        (err.code === "ERR_NETWORK"
+          ? "Servidor indisponível. Verifique sua conexão."
+          : "Erro ao conectar com o servidor.");
+      setMessage(msg);
     }
   };
 
-  // LOGOUT
+  // --- LOGOUT ---
   const handleLogout = () => {
     clearAuth();
     setLoggedIn(false);
@@ -176,44 +174,22 @@ export default function Pendente() {
             </div>
 
             <form onSubmit={handleProcess} className="space-y-4">
-              <div className="flex flex-col">
-                <label className="text-sm text-gray-400 mb-1">Relatório Fechados</label>
-                <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
-                  <Upload className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="file"
-                    name="relatorio_fechados"
-                    onChange={handleChange}
-                    className="text-sm text-gray-300 file:hidden focus:outline-none"
-                  />
+              {["relatorio_fechados", "planilha_prazos", "pagina_guia"].map((key, i) => (
+                <div key={i} className="flex flex-col">
+                  <label className="text-sm text-gray-400 mb-1 capitalize">
+                    {key.replace("_", " ")}
+                  </label>
+                  <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                    <Upload className="w-4 h-4 text-gray-500" />
+                    <input
+                      type="file"
+                      name={key}
+                      onChange={handleChange}
+                      className="text-sm text-gray-300 file:hidden focus:outline-none"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-sm text-gray-400 mb-1">Planilha de Prazos</label>
-                <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
-                  <Upload className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="file"
-                    name="planilha_prazos"
-                    onChange={handleChange}
-                    className="text-sm text-gray-300 file:hidden focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-sm text-gray-400 mb-1">Página Guia</label>
-                <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
-                  <Upload className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="file"
-                    name="pagina_guia"
-                    onChange={handleChange}
-                    className="text-sm text-gray-300 file:hidden focus:outline-none"
-                  />
-                </div>
-              </div>
+              ))}
 
               <input
                 type="text"

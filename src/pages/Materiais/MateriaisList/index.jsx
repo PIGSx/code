@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Upload, Search } from "lucide-react";
-import { getToken, getRole } from "../../../utils/auth";
-import API_URL from "../../../utils/api"; // ✅ agora vem do arquivo central
+import api from "../../../utils/apiAxios"; // ✅ usa o axios centralizado
+import { getRole } from "../../../utils/auth";
 
 export default function MateriaisList() {
   const [materiais, setMateriais] = useState([]);
@@ -13,18 +13,21 @@ export default function MateriaisList() {
   const observer = useRef();
   const itemsPerPage = 15;
 
-  const token = getToken();
   const role = getRole();
 
-  // --- Fetch materiais ---
+  // --- Carrega materiais do servidor ---
   const fetchMateriais = async () => {
     try {
-      const res = await fetch(`${API_URL}/materiais`);
-      if (!res.ok) throw new Error("Erro ao carregar materiais.");
-      const data = await res.json();
-      setMateriais(data);
+      const res = await api.get("/materiais");
+      if (Array.isArray(res.data)) {
+        setMateriais(res.data);
+      } else {
+        console.warn("⚠️ Resposta inesperada:", res.data);
+        setMateriais([]);
+      }
     } catch (err) {
-      setMessage("❌ Erro ao carregar materiais.");
+      console.error("❌ Erro ao buscar materiais:", err);
+      setMessage("Erro ao carregar materiais.");
     }
   };
 
@@ -66,7 +69,7 @@ export default function MateriaisList() {
 
   const categorias = ["Todos", ...new Set(materiais.map((m) => m["CATEGORIA"]).filter(Boolean))];
 
-  // --- Upload (somente admin) ---
+  // --- Upload de planilha (somente admin) ---
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -75,17 +78,19 @@ export default function MateriaisList() {
     formData.append("file", file);
 
     try {
-      const res = await fetch(`${API_URL}/upload_materiais`, {
-        method: "POST",
-        headers: { Authorization: token ? `Bearer ${token}` : "" },
-        body: formData,
+      const res = await api.post("/upload_materiais", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      const data = await res.json();
-      setMessage(data.message || data.error);
-      if (data.message) fetchMateriais();
-    } catch {
-      setMessage("❌ Erro ao enviar arquivo.");
+      setMessage(res.data.message || res.data.error || "Erro desconhecido");
+      if (res.data.message) fetchMateriais();
+    } catch (err) {
+      console.error("❌ Erro ao enviar arquivo:", err);
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Erro ao enviar arquivo.";
+      setMessage(msg);
     }
   };
 
@@ -110,6 +115,7 @@ export default function MateriaisList() {
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-10 py-2 text-gray-200 placeholder-gray-500 focus:ring focus:ring-blue-500 outline-none"
           />
         </div>
+
         <select
           value={categoria}
           onChange={(e) => {
@@ -124,7 +130,7 @@ export default function MateriaisList() {
         </select>
       </div>
 
-      {/* Upload somente admin */}
+      {/* Upload (somente admin) */}
       {role?.toLowerCase() === "admin" && (
         <div className="w-full max-w-5xl mb-6 flex justify-between items-center">
           <label className="flex items-center gap-2 cursor-pointer bg-green-600/80 hover:bg-green-700 px-4 py-2 rounded-lg transition-all">
