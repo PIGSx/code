@@ -13,12 +13,20 @@ from selenium.webdriver.support import expected_conditions as EC
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+
+# ✅ CORS atualizado para permitir local e produção
 CORS(
     app,
-    resources={r"/*": {"origins": ["https://technoblade.shop"]}},
+    resources={r"/*": {"origins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://technoblade.shop"
+    ]}},
     supports_credentials=True,
-    allow_headers=["Content-Type", "Authorization"]
+    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 )
+
 # ------------------------
 # --- AUTENTICAÇÃO -------
 # ------------------------
@@ -187,9 +195,8 @@ def rastreador_abrir_site():
         return jsonify({"status": "error", "mensagem": "Acesso negado: somente administradores"}), 403
 
     try:
-        navegador = webdriver.Chrome()  # Inicia o navegador
-        navegador.maximize_window()  # Maximiza a janela do navegador
-
+        navegador = webdriver.Chrome()
+        navegador.maximize_window()
         navegador.get("https://web.hapolo.com.br/")
         
         WebDriverWait(navegador, 20).until(EC.presence_of_element_located((By.XPATH, '//*[@id="id_user"]')))
@@ -214,7 +221,7 @@ def rastreador_abrir_site():
 # --- RUN -----------------
 # ------------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5050))
     print(f"🚀 Servidor rodando em: http://localhost:{port}")
     try:
         ip_local = os.popen("hostname -I").read().strip().split()[0]

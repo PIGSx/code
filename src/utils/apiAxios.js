@@ -12,7 +12,7 @@ if (
   hostname.startsWith("192.168.")
 ) {
   // Ambiente local → usa backend local
-  API_URL = "http://127.0.0.1:5000";
+  API_URL = "http://127.0.0.1:5050";
 } else {
   // Ambiente de produção → usa o servidor online
   API_URL = "https://api.technoblade.shop";
