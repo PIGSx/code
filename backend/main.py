@@ -5,16 +5,17 @@ import io
 import uuid
 import time
 import os
+import tempfile
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-# ✅ CORS atualizado para permitir local e produção
+# ✅ Configuração de CORS
 CORS(
     app,
     resources={r"/*": {"origins": [
@@ -134,59 +135,114 @@ def upload_excel():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/processar_materiais", methods=["POST"])
-def processar_materiais():
+# ------------------------
+# --- PENDENTE PROCESSAR --
+# ------------------------
+@app.route("/pendente/processar", methods=["POST"])
+def processar_pendente():
+    """
+    Recebe até 3 planilhas e retorna o Excel processado.
+    """
+    info, err_resp, status = check_token()
+    if err_resp:
+        return err_resp, status
+
     try:
-        kits_file = request.files.get('kits')
-        baixas_file = request.files.get('baixas')
-        if not kits_file or not baixas_file:
-            return jsonify({"error": "Envie os dois arquivos!"}), 400
+        # 🧩 Recebe arquivos do front
+        planilha_principal = request.files.get("relatorio_fechados")
+        prazos = request.files.get("planilha_prazos")
+        logradouros = request.files.get("pagina_guia")
+        nome_relatorio = request.form.get("nome_do_relatorio", "pendente_processado.xlsx")
 
-        kits = pd.read_excel(kits_file, engine='openpyxl')
-        baixas = pd.read_excel(baixas_file, engine='openpyxl')
+        if not planilha_principal:
+            return jsonify({"error": "⚠️ Envie a planilha principal (relatorio_fechados)."}), 400
+        if not prazos:
+            return jsonify({"error": "⚠️ Envie também a planilha de prazos."}), 400
 
-        kits.columns = kits.columns.str.strip()
-        baixas.columns = baixas.columns.str.strip()
+        # 🧠 Tenta ler as planilhas
+        try:
+            df_main = pd.read_excel(planilha_principal)
+            df_prazos = pd.read_excel(prazos)
+            df_log = pd.read_excel(logradouros) if logradouros else None
+        except Exception as e:
+            return jsonify({"error": f"Erro ao ler uma das planilhas: {str(e)}"}), 400
 
-        kits = kits[['Material', 'TSE', 'Quantidade']]
-        baixas = baixas[['Número OS', 'Material', 'Quantidade - Unidade de Medida', 'TSE']]
+        # 🧹 Limpeza de colunas
+        drop_cols = [
+            "Nome da Origem", "Unidade Executante", "Código TSS", "Prioridade", "Equipe",
+            "PDE", "Município", "Cod. Município", "Setor", "Rota", "Quadra", "Local",
+            "Vila", "SubLocal", "ATO", "Área de Serviço", "Grupo de Faturamento",
+            "Data Inserção", "Data Agendada", "Prazo de Execução", "Notas de Acatamento",
+            "Arsesp"
+        ]
+        df_main.drop(columns=drop_cols, errors="ignore", inplace=True)
 
-        baixas['Codigo'] = baixas['Material'].astype(str)
-        baixas['Quantidade'] = (baixas['Quantidade - Unidade de Medida'].astype(str)
-                                .str.split().str[0]
-                                .str.extract(r'(\d+\.?\d*)')[0]
-                                .astype(float, errors='ignore'))
+        # 🔎 Filtros
+        df_main = df_main[~df_main['Família'].isin(['FISCALIZAÇÃO', 'VISTORIA'])]
+        df_main = df_main[~df_main['Contrato'].isin([
+            '4600042975 - CONSORCIO MANUTENÇÃO SUZANO ZC',
+            '4600054507 - ENOPS ENGENHARIA S/A.',
+            '4600054538 - CONSÓRCIO LEITURA ITAQUERA',
+            '4600057156 - CONSÓRCIO DARWIN TB LESTE',
+            '4600060030 - CONSÓRCIO AMPLIA REDE LESTE',
+            '4600060107 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ',
+            '4600060108 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ',
+            '9999999999 - SABESP'
+        ])]
 
-        kits_dict = kits.groupby("TSE").apply(lambda x: dict(zip(x["Material"], x["Quantidade"]))).to_dict()
+        # 🧮 Ajustes de dados
+        df_main['ATC'] = df_main['ATC'].astype(str).str.extract(r'(\d+)')[0]
+        df_main = df_main[df_main['Descrição TSS'] != 'TROCAR HIDRÔMETRO PREVENTIVA AGENDADA']
 
-        def conferir_os(df_os):
-            tse = df_os["TSE"].iloc[0]
-            materiais_esperados = kits_dict.get(tse, {})
-            if not materiais_esperados:
-                return {"TSE": tse, "Status": "não localizado"}
-            materiais_lancados = df_os.groupby("Codigo")["Quantidade"].sum().to_dict()
-            faltando = {k: v - materiais_lancados.get(k, 0) for k, v in materiais_esperados.items() if materiais_lancados.get(k, 0) < v}
-            extras = {k: v for k, v in materiais_lancados.items() if k not in materiais_esperados}
-            status = "OK" if not faltando and not extras else "Pendente"
-            return {
-                "TSE": tse,
-                "Esperado": str(materiais_esperados),
-                "Lançado": str(materiais_lancados),
-                "Faltando": str(faltando) if faltando else "–",
-                "Extras": str(extras) if extras else "–",
-                "Status": status
-            }
+        if 'Data de Competência' in df_main.columns:
+            df_main['Data de Competência'] = pd.to_datetime(df_main['Data de Competência'], errors='coerce')
 
-        relatorio = baixas.groupby("Número OS").apply(conferir_os).reset_index().to_dict(orient='records')
-        return jsonify(relatorio)
+        # 🔗 Merge com prazos
+        df_merge = pd.merge(df_main, df_prazos[['Descrição TSS', 'PRAZO (HORAS)']], on='Descrição TSS', how='left')
+
+        # 🔗 Merge com logradouros (opcional)
+        if df_log is not None:
+            try:
+                df_merge = pd.merge(df_merge, df_log[['Logradouro', 'Página Guia']], left_index=True, right_index=True, how='left')
+                df_merge.drop(columns=['Logradouro'], errors='ignore', inplace=True)
+            except Exception:
+                pass  # ignora se a planilha tiver colunas diferentes
+
+        # 📍 Endereço completo
+        if 'Número' in df_merge.columns and 'Complemento' in df_merge.columns:
+            df_merge['Endereço'] = (
+                df_merge['Endereço'].fillna('') + ' ' +
+                df_merge['Número'].fillna('').astype(str) + ' ' +
+                df_merge['Complemento'].fillna('').astype(str)
+            ).str.strip()
+            df_merge.drop(columns=['Número', 'Complemento'], errors='ignore', inplace=True)
+
+        # 🕒 Calcular data final
+        if 'PRAZO (HORAS)' in df_merge.columns:
+            df_merge['Data Final'] = df_merge['Data de Competência'] + pd.to_timedelta(df_merge['PRAZO (HORAS)'], unit='h')
+
+        # 🧾 Ordenar colunas
+        cols = ['Status', 'Número OS', 'ATC', 'Endereço', 'Bairro', 'Página Guia',
+                'Data de Competência', 'Data Final', 'Descrição TSS',
+                'PRAZO (HORAS)', 'Contrato', 'Causa', 'Resultado']
+        cols = [c for c in cols if c in df_merge.columns]
+        df_merge = df_merge[cols]
+
+        # 💾 Salvar e enviar
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+        df_merge.to_excel(temp_file.name, index=False)
+        temp_file.close()
+
+        return send_file(temp_file.name, as_attachment=True, download_name=nome_relatorio)
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({"error": str(e)}), 500
 
 # ------------------------
 # --- RASTREADOR ---------
 # ------------------------
-@app.route('/rastreador/abrir-site', methods=['POST'])
-def rastreador_abrir_site():
+@app.route("/rastreador", methods=["POST"])
+def rastreador_login():
     info, err_resp, status = check_token()
     if err_resp:
         return err_resp, status
@@ -198,34 +254,25 @@ def rastreador_abrir_site():
         navegador = webdriver.Chrome()
         navegador.maximize_window()
         navegador.get("https://web.hapolo.com.br/")
-        
+
         WebDriverWait(navegador, 20).until(EC.presence_of_element_located((By.XPATH, '//*[@id="id_user"]')))
         navegador.find_element(By.XPATH, '//*[@id="id_user"]').send_keys("psbltda")
         navegador.find_element(By.XPATH, '//input[@name="password"]').send_keys("010203" + Keys.RETURN)
 
-        WebDriverWait(navegador, 20).until(EC.title_contains('Título Esperado Depois do Login'))
-
-        cookies = navegador.get_cookies()
-        titulo = navegador.title
+        WebDriverWait(navegador, 20).until(lambda d: "hapolo" in d.current_url.lower())
 
         return jsonify({
             "status": "success",
-            "mensagem": f"✅ Login feito no servidor! Página acessada: {titulo}",
-            "cookies": cookies
+            "mensagem": "✅ Login realizado no Hapolo! A aba foi mantida aberta."
         })
 
     except Exception as e:
-        return jsonify({"status": "error", "mensagem": f"❌ Erro na execução do Selenium: {str(e)}"}), 500
+        return jsonify({"status": "error", "mensagem": f"Erro no rastreador: {str(e)}"}), 500
 
 # ------------------------
-# --- RUN -----------------
+# --- RUN ----------------
 # ------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
-    print(f"🚀 Servidor rodando em: http://localhost:{port}")
-    try:
-        ip_local = os.popen("hostname -I").read().strip().split()[0]
-        print(f"🌐 Acesse via rede: http://{ip_local}:{port}")
-    except:
-        pass
+    print(f"🚀 Servidor rodando em http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=True)

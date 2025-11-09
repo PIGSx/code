@@ -30,6 +30,15 @@ export default function DownloadPage() {
       url: "",
       status: false,
     },
+    {
+      title: "Kits (base)",
+      filename: "kits.xlsx",
+      uploadedAgo: "",
+      size: "12km",
+      type: "xlsm",
+      url: "/downloads/kits.xlsm",
+      status: true,
+    },
   ]);
 
   return (
