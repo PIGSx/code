@@ -1,5 +1,5 @@
 // src/router/index.jsx
-import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Home from "../pages/Home";
 import Download from "../pages/DownloadPage";
@@ -17,20 +17,20 @@ import MateriaisApp from "../pages/Materiais/MateriaisApp";
 import PageNotFound from "../components/PageNotFound";
 import LoginPage from "../pages/Login";
 
-import { isAuthenticated } from "../utils/auth";
 import BotaoVoltar from "../components/BackBotton";
+import { isAuthenticated } from "../utils/auth";
 
-// Layout padrão com Navbar + Botão de Voltar
 const DefaultLayout = () => {
   const { pathname } = useLocation();
-  const isHome = pathname === "/"; // Não mostra botão na Home
+  const logged = isAuthenticated();
+  const showBack = logged && pathname !== "/" && pathname !== "/login";
 
   return (
     <>
       <Navbar />
 
-      {!isHome && (
-        <div className="p-4">
+      {showBack && (
+        <div className="px-6 py-3 bg-[#0C0F17]">
           <BotaoVoltar />
         </div>
       )}
@@ -40,45 +40,31 @@ const DefaultLayout = () => {
   );
 };
 
-// Rota privada — protege páginas após login
-const PrivateRoute = ({ children }) => {
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />;
-  }
-  return children;
-};
+const PrivateRoute = ({ children }) =>
+  isAuthenticated() ? children : <Navigate to="/login" replace />;
 
 export default function RoutsPage() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
 
-        {/* Login sem layout */}
-        <Route path="/login" element={<LoginPage />} />
+      <Route element={<DefaultLayout />}>
+        <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+        <Route path="/carteira" element={<PrivateRoute><Carteira /></PrivateRoute>} />
+        <Route path="/rastreador" element={<PrivateRoute><Rastreador /></PrivateRoute>} />
+        <Route path="/download" element={<PrivateRoute><Download /></PrivateRoute>} />
+        <Route path="/ptrac" element={<PrivateRoute><Petrac /></PrivateRoute>} />
+        <Route path="/pendente" element={<PrivateRoute><Pendente /></PrivateRoute>} />
+        <Route path="/materiais" element={<PrivateRoute><Materiais /></PrivateRoute>} />
+        <Route path="/polos" element={<PrivateRoute><Polos /></PrivateRoute>} />
+        <Route path="/itaim" element={<PrivateRoute><Itaim /></PrivateRoute>} />
+        <Route path="/penha" element={<PrivateRoute><Penha /></PrivateRoute>} />
+        <Route path="/sm" element={<PrivateRoute><SM /></PrivateRoute>} />
+        <Route path="/materiaislist" element={<PrivateRoute><MateriaisList /></PrivateRoute>} />
+        <Route path="/materiaisapp" element={<PrivateRoute><MateriaisApp /></PrivateRoute>} />
+      </Route>
 
-        {/* Rotas com layout padrão */}
-        <Route element={<DefaultLayout />}>
-
-          <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
-          <Route path="/carteira" element={<PrivateRoute><Carteira /></PrivateRoute>} />
-          <Route path="/rastreador" element={<PrivateRoute><Rastreador /></PrivateRoute>} />
-          <Route path="/download" element={<PrivateRoute><Download /></PrivateRoute>} />
-          <Route path="/ptrac" element={<PrivateRoute><Petrac /></PrivateRoute>} />
-          <Route path="/pendente" element={<PrivateRoute><Pendente /></PrivateRoute>} />
-          <Route path="/materiais" element={<PrivateRoute><Materiais /></PrivateRoute>} />
-          <Route path="/polos" element={<PrivateRoute><Polos /></PrivateRoute>} />
-          <Route path="/itaim" element={<PrivateRoute><Itaim /></PrivateRoute>} />
-          <Route path="/penha" element={<PrivateRoute><Penha /></PrivateRoute>} />
-          <Route path="/sm" element={<PrivateRoute><SM /></PrivateRoute>} />
-          <Route path="/materiaislist" element={<PrivateRoute><MateriaisList /></PrivateRoute>} />
-          <Route path="/materiaisapp" element={<PrivateRoute><MateriaisApp /></PrivateRoute>} />
-
-        </Route>
-
-        {/* 404 */}
-        <Route path="*" element={<PageNotFound />} />
-
-      </Routes>
-    </BrowserRouter>
+      <Route path="*" element={<PageNotFound />} />
+    </Routes>
   );
 }

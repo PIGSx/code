@@ -7,9 +7,14 @@ export default function BotaoVoltar() {
   return (
     <button
       onClick={() => navigate(-1)}
-      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1A1A1A] hover:bg-[#262626] text-white transition font-medium"
+      className="flex items-center gap-2 px-3 py-1.5
+                 text-sm text-purple-200
+                 rounded-lg border border-purple-400/20
+                 bg-transparent
+                 transition-all
+                 hover:bg-purple-400/10 hover:border-purple-400/40 hover:text-white"
     >
-      <ArrowLeft size={18} />
+      <ArrowLeft size={16} />
       Voltar
     </button>
   );
