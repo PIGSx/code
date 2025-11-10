@@ -14,14 +14,14 @@ export default function Pendente() {
 
   const token = getToken();
 
-  // Se não tiver token, redireciona para login
+  // --- Redireciona se não tiver token ---
   useEffect(() => {
     if (!token) {
       window.location.href = "/login";
     }
   }, [token]);
 
-  // --- INPUTS ---
+  // --- Atualiza campos ---
   const handleChange = (e) => {
     const { name, type, files, value } = e.target;
     setForm((prev) => ({
@@ -30,7 +30,7 @@ export default function Pendente() {
     }));
   };
 
-  // --- PROCESSAR ---
+  // --- Envia arquivos ---
   const handleProcess = async (e) => {
     e.preventDefault();
     setMessage("⏳ Enviando arquivos...");
@@ -44,7 +44,7 @@ export default function Pendente() {
       formData.append("planilha_prazos", form.planilha_prazos);
     if (form.pagina_guia) formData.append("pagina_guia", form.pagina_guia);
 
-    // ✅ Garante extensão .xlsx
+    // Garante extensão .xlsx
     let nomeArquivo = form.nome_do_relatorio?.trim() || "saida";
     if (!nomeArquivo.toLowerCase().endsWith(".xlsx")) {
       nomeArquivo += ".xlsx";
@@ -65,6 +65,7 @@ export default function Pendente() {
         return;
       }
 
+      // Baixar resultado
       const downloadUrl = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
       link.href = downloadUrl;
@@ -94,24 +95,24 @@ export default function Pendente() {
         </h2>
 
         <form onSubmit={handleProcess} className="space-y-4">
-          {["relatorio_pendente", "planilha_prazos", "pagina_guia"].map(
-            (key, i) => (
-              <div key={i} className="flex flex-col">
-                <label className="text-sm text-gray-400 mb-1 capitalize">
-                  {key.replace("_", " ")}
-                </label>
-                <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
-                  <Upload className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="file"
-                    name={key}
-                    onChange={handleChange}
-                    className="text-sm text-gray-300 file:hidden focus:outline-none"
-                  />
-                </div>
+          {[
+            { key: "relatorio_fechados", label: "Relatório Pendente" },
+            { key: "planilha_prazos", label: "Planilha Prazos" },
+            { key: "pagina_guia", label: "Página Guia" },
+          ].map(({ key, label }, i) => (
+            <div key={i} className="flex flex-col">
+              <label className="text-sm text-gray-400 mb-1">{label}</label>
+              <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                <Upload className="w-4 h-4 text-gray-500" />
+                <input
+                  type="file"
+                  name={key}
+                  onChange={handleChange}
+                  className="text-sm text-gray-300 file:hidden focus:outline-none"
+                />
               </div>
-            )
-          )}
+            </div>
+          ))}
 
           <input
             type="text"
