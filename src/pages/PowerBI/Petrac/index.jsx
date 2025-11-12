@@ -5,9 +5,9 @@ const Petrac = () => {
     <div className="petrac">
       <iframe
         title="DASH 2"
-        width="1140"
-        height="541.25"
-        src="https://app.powerbi.com/reportEmbed?reportId=94d8b030-2732-48e8-aadb-a592c81658f2&autoAuth=true&ctid=c22a732b-965b-4586-bfcd-f42826632ad7"
+        width="2020"
+        height="1120"
+        src="https://app.powerbi.com/view?r=eyJrIjoiMWM0NDUyYmQtNTAwNi00ODcxLWJjZGMtMWQ3MDk0NGUyNjY1IiwidCI6ImMyMmE3MzJiLTk2NWItNDU4Ni1iZmNkLWY0MjgyNjYzMmFkNyJ9"
         frameborder="0"
         allowFullScreen="true"
       ></iframe>

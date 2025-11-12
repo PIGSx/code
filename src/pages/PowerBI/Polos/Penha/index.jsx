@@ -7,7 +7,7 @@ const Penha = () => {
         title="DASH ISAP PENHA"
         width="2020"
         height="1120"
-        src="https://app.powerbi.com/reportEmbed?reportId=985cf666-8ff1-48bd-b718-c82bc030b8dc&autoAuth=true&ctid=c22a732b-965b-4586-bfcd-f42826632ad7"
+        src="https://app.powerbi.com/view?r=eyJrIjoiMmY2ZjZmYzMtMTVjNS00ZWY1LWE1YjctOWQ5Y2VjYWY2NTYxIiwidCI6ImMyMmE3MzJiLTk2NWItNDU4Ni1iZmNkLWY0MjgyNjYzMmFkNyJ9"
         frameborder="0"
         allowFullScreen="true"
       ></iframe>

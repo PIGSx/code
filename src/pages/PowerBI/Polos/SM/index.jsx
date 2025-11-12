@@ -7,7 +7,7 @@ const SM = () => {
         title="DASH ISAP PENHA SÃO MIGUEL"
         width="2020"
         height="1120"
-        src="https://app.powerbi.com/reportEmbed?reportId=74bebbf0-747c-479f-baed-4e268a8b9654&autoAuth=true&ctid=c22a732b-965b-4586-bfcd-f42826632ad7"
+        src="https://app.powerbi.com/view?r=eyJrIjoiYWNjMDg4NzEtYTYxNC00NjJkLTg1ZjQtNzkwY2UwZmRiZmVmIiwidCI6ImMyMmE3MzJiLTk2NWItNDU4Ni1iZmNkLWY0MjgyNjYzMmFkNyJ9"
         frameborder="0"
         allowFullScreen="true"
       ></iframe>

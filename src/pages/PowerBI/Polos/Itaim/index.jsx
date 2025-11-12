@@ -7,7 +7,7 @@ const Itaim = () => {
         title="DASH ISAP ITAIM"
         width="2020"
         height="1120"
-        src="https://app.powerbi.com/reportEmbed?reportId=05801053-6ea6-4839-8e94-26f079f6e568&autoAuth=true&ctid=c22a732b-965b-4586-bfcd-f42826632ad7"
+        src="https://app.powerbi.com/view?r=eyJrIjoiNTA4YjE0ODMtNWVhOS00NzRlLWE0NjktMGI2MjQ2ZGU5ZGI4IiwidCI6ImMyMmE3MzJiLTk2NWItNDU4Ni1iZmNkLWY0MjgyNjYzMmFkNyJ9"
         frameborder="0"
         allowFullScreen="true"
       ></iframe>

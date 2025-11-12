@@ -5,7 +5,7 @@ const Carteira = () => {
         title="DASH 2"
         width="2020"
         height="1120"
-        src="https://app.powerbi.com/reportEmbed?reportId=94d8b030-2732-48e8-aadb-a592c81658f2&autoAuth=true&ctid=c22a732b-965b-4586-bfcd-f42826632ad7"
+        src="https://app.powerbi.com/view?r=eyJrIjoiNjAwNjNmOWUtMzdiYy00YzdmLTk2YmMtYThkYWVlZTY5MTcxIiwidCI6ImMyMmE3MzJiLTk2NWItNDU4Ni1iZmNkLWY0MjgyNjYzMmFkNyJ9"
         frameborder="0"
         allowFullScreen="true"
       ></iframe>
