@@ -15,6 +15,7 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 
 app = Flask(__name__)
 
+
 # ✅ CORS PARA DESENVOLVIMENTO LOCAL
 CORS(app, resources={r"/*": {"origins": "*"}})
 
