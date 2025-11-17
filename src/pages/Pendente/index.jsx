@@ -1,136 +1,359 @@
-import React, { useState, useEffect } from "react";
-import { Upload } from "lucide-react";
-import { getToken } from "../../utils/auth";
-import api from "../../utils/apiAxios";
+// PendenteAPI.jsx — Versão corrigida usando apiAxios.js corretamente
+import React, { useState } from "react";
+import api from "../../utils/apiAxios"; // ← AGORA ESTÁ CORRETO
+import { Upload, ChevronDown, ChevronUp, DownloadCloud, Save } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-export default function Pendente() {
+export default function PendenteAPI() {
+  const [file, setFile] = useState(null);
+  const [fileId, setFileId] = useState(null);
+  const [sheets, setSheets] = useState([]);
+  const [selectedSheet, setSelectedSheet] = useState("");
+  const [options, setOptions] = useState({});
+  const [selectedContratos, setSelectedContratos] = useState([]);
+  const [selectedAtcs, setSelectedAtcs] = useState([]);
+  const [selectedDescricoes, setSelectedDescricoes] = useState([]);
   const [message, setMessage] = useState("");
-  const [form, setForm] = useState({
-    relatorio_fechados: null,
-    planilha_prazos: null,
-    pagina_guia: null,
-    nome_do_relatorio: "",
-  });
+  const [loading, setLoading] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
-  const token = getToken();
-
-  useEffect(() => {
-    if (!token) {
-      window.location.href = "/login";
-    }
-  }, [token]);
-
-  const handleChange = (e) => {
-    const { name, type, files, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "file" ? files[0] : value,
-    }));
+  // Reset filters
+  const resetFilters = () => {
+    setSelectedContratos([]);
+    setSelectedAtcs([]);
+    setSelectedDescricoes([]);
+    setOptions({});
   };
 
-  const handleProcess = async (e) => {
-    e.preventDefault();
-    setMessage("⏳ Enviando arquivos...");
+  // File select
+  const onFileChange = (e) => {
+    setFile(e.target.files[0]);
+    setMessage("");
+  };
 
-    if (!form.relatorio_fechados)
-      return setMessage("⚠️ Envie o arquivo principal.");
-
-    const formData = new FormData();
-    formData.append("relatorio_fechados", form.relatorio_fechados);
-    if (form.planilha_prazos)
-      formData.append("planilha_prazos", form.planilha_prazos);
-    if (form.pagina_guia) formData.append("pagina_guia", form.pagina_guia);
-
-    let nomeArquivo = form.nome_do_relatorio?.trim() || "saida";
-    if (!nomeArquivo.toLowerCase().endsWith(".xlsx")) {
-      nomeArquivo += ".xlsx";
-    }
-    formData.append("nome_do_relatorio", nomeArquivo);
+  // UPLOAD FILE
+  const uploadFile = async () => {
+    if (!file) return setMessage("Selecione um arquivo primeiro.");
+    setLoading(true);
+    setMessage("Enviando arquivo...");
 
     try {
-      const res = await api.post("/pendente/processar", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
-        },
-        responseType: "blob",
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await api.post("/pendente/upload", fd, {
+        headers: { "Content-Type": "multipart/form-data" }
       });
 
-      if (res.status !== 200) {
-        setMessage("❌ Erro ao processar arquivos.");
-        return;
-      }
+      setFileId(res.data.file_id);
+      setSheets(res.data.sheets || []);
+      setSelectedSheet("");
+      resetFilters();
 
-      const downloadUrl = window.URL.createObjectURL(new Blob([res.data]));
+      setMessage("Upload OK — escolha a aba");
+    } catch (err) {
+      console.error(err);
+      setMessage("Erro no upload: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // FETCH FILTER OPTIONS
+  const fetchOptions = async (sheet) => {
+    if (!fileId || !sheet) return;
+
+    setLoading(true);
+    setMessage("Carregando filtros...");
+
+    try {
+      const res = await api.get("/pendente/options", {
+        params: { file_id: fileId, sheet }
+      });
+
+      setOptions(res.data || {});
+      setMessage("Filtros carregados.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Erro ao carregar filtros.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Toggle multi select
+  const toggleSelect = (list, setList, item) => {
+    setList(
+      list.includes(item)
+        ? list.filter((x) => x !== item)
+        : [...list, item]
+    );
+  };
+
+  // PROCESS FILE
+  const processFile = async () => {
+    if (!fileId || !selectedSheet)
+      return setMessage("Faça o upload e selecione a aba primeiro.");
+
+    setLoading(true);
+    setMessage("Processando...");
+
+    try {
+      const fd = new FormData();
+      fd.append("file_id", fileId);
+      fd.append("sheet", selectedSheet);
+      fd.append("contratos", JSON.stringify(selectedContratos));
+      fd.append("atcs", JSON.stringify(selectedAtcs));
+      fd.append("descricoes", JSON.stringify(selectedDescricoes));
+
+      const nome = "saida.xlsx";
+      fd.append("nome_do_relatorio", nome);
+
+      const res = await api.post("/pendente/process", fd, {
+        responseType: "blob"
+      });
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.setAttribute("download", nomeArquivo);
+      link.href = url;
+      link.setAttribute("download", nome);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      window.URL.revokeObjectURL(url);
 
-      setMessage("✅ Arquivo processado e baixado com sucesso!");
+      setMessage("Arquivo processado e baixado!");
     } catch (err) {
-      console.error("❌ Erro no processamento:", err);
-      const msg =
-        err.response?.data?.message ||
-        (err.code === "ERR_NETWORK"
-          ? "Servidor indisponível. Verifique sua conexão."
-          : "Erro ao conectar com o servidor.");
-      setMessage(msg);
+      console.error(err);
+      setMessage("Erro ao processar: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // SAVE FILTER
+  const saveFilter = async () => {
+    const name = prompt("Nome do filtro:");
+    if (!name) return;
+
+    const payload = {
+      name,
+      contratos: selectedContratos,
+      ATCs: selectedAtcs,
+      "descrições_tss": selectedDescricoes,
+    };
+
+    try {
+      await api.post("/pendente/filters/save", payload);
+      setMessage("Filtro salvo!");
+    } catch (err) {
+      console.error(err);
+      setMessage("Erro ao salvar filtro.");
+    }
+  };
+
+  // LOAD FILTER
+  const loadFilters = async () => {
+    setLoading(true);
+
+    try {
+      const res = await api.get("/pendente/filters/list");
+      const filters = res.data.filters || [];
+
+      if (!filters.length) {
+        alert("Nenhum filtro salvo ainda.");
+        return;
+      }
+
+      const list = filters.map((f, i) => `${i + 1}. ${f.name}`).join("\n");
+      const pick = prompt(`Filtros:\n\n${list}\n\nDigite o número:`);
+      const idx = Number(pick) - 1;
+
+      if (!filters[idx]) return;
+
+      resetFilters();
+      setSelectedContratos(filters[idx].contratos || []);
+      setSelectedAtcs(filters[idx].ATCs || []);
+      setSelectedDescricoes(filters[idx]["descrições_tss"] || []);
+      setMessage("Filtro aplicado.");
+    } catch (err) {
+      console.error(err);
+      setMessage("Erro ao carregar filtros.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black flex items-center justify-center text-gray-100 px-4 py-10">
-      <div className="w-full max-w-md bg-gray-900/60 backdrop-blur-lg border border-gray-800 rounded-2xl shadow-xl p-8">
-        <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-green-400 to-cyan-300 bg-clip-text text-transparent">
-          Processar Arquivos
-        </h2>
-
-        <form onSubmit={handleProcess} className="space-y-4">
-          {["relatorio_fechados", "planilha_prazos", "pagina_guia"].map(
-            (key, i) => (
-              <div key={i} className="flex flex-col">
-                <label className="text-sm text-gray-400 mb-1 capitalize">
-                  {key.replace("_", " ")}
-                </label>
-                <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
-                  <Upload className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="file"
-                    name={key}
-                    onChange={handleChange}
-                    className="text-sm text-gray-300 file:hidden focus:outline-none"
-                  />
-                </div>
-              </div>
-            )
-          )}
-
-          <input
-            type="text"
-            name="nome_do_relatorio"
-            placeholder="Nome do Relatório (ex: pendentes_nov)"
-            value={form.nome_do_relatorio}
-            onChange={handleChange}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-gray-200 placeholder-gray-500 focus:ring focus:ring-green-500 outline-none"
-          />
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-lg p-4 sm:p-6"
+      >
+        {/* HEADER */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-white text-xl sm:text-2xl font-bold">Processar Pendentes</h1>
+            <p className="text-gray-300 text-sm mt-1">
+              Envie a planilha, selecione filtros e baixe o resultado.
+            </p>
+          </div>
 
           <button
-            type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 transition-all text-white font-semibold py-2 rounded-lg"
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className="text-gray-300 hover:text-white p-2 rounded"
           >
-            Processar
+            {filtersOpen ? <ChevronUp /> : <ChevronDown />}
           </button>
-        </form>
+        </div>
 
-        {message && (
-          <p className="mt-4 text-center text-gray-400 animate-pulse">
-            {message}
-          </p>
+        {/* UPLOAD */}
+        <div className="mt-4">
+          <label className="block bg-slate-700/30 border border-slate-600 rounded p-3 cursor-pointer">
+            <div className="flex items-center gap-2">
+              <Upload size={18} className="text-white" />
+              <span className="text-gray-200">
+                {file ? file.name : "Escolher arquivo (.xlsx)"}
+              </span>
+            </div>
+            <input type="file" className="hidden" onChange={onFileChange} />
+          </label>
+
+          <div className="flex gap-3 mt-3">
+            <button
+              onClick={uploadFile}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded"
+              disabled={loading}
+            >
+              Enviar
+            </button>
+
+            <button
+              onClick={() => {
+                setFile(null);
+                setFileId(null);
+                setSheets([]);
+                resetFilters();
+              }}
+              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        {/* SHEETS */}
+        {sheets.length > 0 && (
+          <div className="mt-4">
+            <select
+              value={selectedSheet}
+              onChange={(e) => {
+                setSelectedSheet(e.target.value);
+                resetFilters();
+                fetchOptions(e.target.value);
+              }}
+              className="bg-slate-700 text-white p-2 rounded w-full"
+            >
+              <option value="">-- Escolher aba --</option>
+              {sheets.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
+
+        {/* FILTERS */}
+        <AnimatePresence>
+          {filtersOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <FilterCard
+                  title="Contratos"
+                  items={options["Contrato"] || []}
+                  selected={selectedContratos}
+                  toggle={(v) => toggleSelect(selectedContratos, setSelectedContratos, v)}
+                />
+
+                <FilterCard
+                  title="ATC"
+                  items={options["ATC"] || []}
+                  selected={selectedAtcs}
+                  toggle={(v) => toggleSelect(selectedAtcs, setSelectedAtcs, v)}
+                />
+
+                <FilterCard
+                  title="Descrição TSS"
+                  items={options["Descrição TSS"] || []}
+                  selected={selectedDescricoes}
+                  toggle={(v) => toggleSelect(selectedDescricoes, setSelectedDescricoes, v)}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ACTION BUTTONS */}
+        <div className="mt-5 flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={processFile}
+            disabled={loading}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded flex items-center justify-center gap-2"
+          >
+            <DownloadCloud size={18} />
+            {loading ? "Processando..." : "Processar e Baixar"}
+          </button>
+
+          <button
+            onClick={saveFilter}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded flex items-center gap-2"
+          >
+            <Save size={16} /> Salvar
+          </button>
+
+          <button
+            onClick={loadFilters}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded flex items-center gap-2"
+          >
+            <DownloadCloud size={16} /> Carregar
+          </button>
+        </div>
+
+        {/* MESSAGE */}
+        <p className="text-gray-300 text-sm mt-4">{message}</p>
+      </motion.div>
+    </div>
+  );
+}
+
+// Small reusable card component
+function FilterCard({ title, items = [], selected = [], toggle }) {
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded p-3">
+      <h4 className="text-gray-100 font-semibold mb-2">{title}</h4>
+      <div className="max-h-48 overflow-auto space-y-1">
+        {items.length === 0 && (
+          <p className="text-gray-400 text-sm">Nenhum valor.</p>
+        )}
+
+        {items.map((it) => (
+          <label key={it} className="flex items-center gap-2 text-gray-200 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selected.includes(it)}
+              onChange={() => toggle(it)}
+            />
+            <span className="truncate">{it}</span>
+          </label>
+        ))}
       </div>
     </div>
   );
