@@ -3,13 +3,12 @@
   margin: 0 auto;
 }
 
-
 .ag-courses_box {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
   padding: 50px 0;
-  padding-bottom: 200px; /* ou altura do footer */
+  padding-bottom: 200px; // ou altura do footer
 }
 
 .ag-courses_item {
@@ -17,6 +16,53 @@
   margin: 0 15px 30px;
   overflow: hidden;
   border-radius: 28px;
+  position: relative;
+
+  &:hover:not(.blocked) {
+    transform: scale(1.02);
+  }
+
+  &.blocked {
+    opacity: 0.5;
+    cursor: not-allowed;
+
+    .blocked-card {
+      display: block;
+      padding: 30px 20px;
+      background-color: #121212;
+      position: relative;
+      text-align: center;
+      font-weight: bold;
+      font-size: 30px;
+      color: #fff;
+      min-height: 87px;
+    }
+
+    .blocked-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 14px;
+      padding: 0 10px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      flex-direction: row;
+      gap: 0.5rem;
+    }
+
+    &:hover .blocked-overlay {
+      opacity: 1;
+    }
+
+    .lock-icon {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
 }
 
 .ag-courses-item_link {

@@ -109,7 +109,7 @@ export default function PendenteAPI() {
       const nome = "saida.xlsx";
       fd.append("nome_do_relatorio", nome);
 
-      const res = await api.post("/pendente/process", fd, {
+      const res = await api.psot("/pendente/process", fd, {
         responseType: "blob"
       });
 

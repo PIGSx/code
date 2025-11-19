@@ -1,4 +1,4 @@
-# main.py — FastAPI unificada (login, materiais, rastreador, pendente)
+# main.py — FastAPI unificada (login, materiais, rastreador interativo, pendente)
 import os
 import uuid
 import time
@@ -6,12 +6,14 @@ import json
 import tempfile
 import logging
 from pathlib import Path
+from base64 import b64encode
 from typing import List, Optional, Dict, Any
 
 import pandas as pd
-from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Query, Header
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Header
 
 # Selenium imports (usados pelo rastreador)
 from selenium import webdriver
@@ -19,7 +21,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException, WebDriverException
+
+
 
 # ---------------- Config ----------------
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
@@ -70,7 +75,7 @@ def verify_token_header(auth_header: Optional[str]) -> Dict[str, Any]:
         raise HTTPException(status_code=403, detail="Token expirado")
     return info
 
-def get_current_user(authorization: Optional[str] = None):
+def get_current_user_header(authorization: Optional[str] = Header(None)):
     return verify_token_header(authorization)
 
 # ---------------- Helpers de arquivos / excel ----------------
@@ -141,7 +146,7 @@ def logout(payload: Dict[str, str]):
     raise HTTPException(status_code=404, detail="Token não encontrado")
 
 @app.get("/current_user")
-def current_user(authorization: Optional[str] = None):
+def current_user(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
     return {"logged_in": True, "user": info["user"], "role": info["role"]}
 
@@ -159,7 +164,7 @@ def listar_materiais():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/upload_materiais")
-def upload_materiais(file: UploadFile = File(...), authorization: Optional[str] = None):
+def upload_materiais(file: UploadFile = File(...), authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
     if info["role"] != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado")
@@ -177,7 +182,7 @@ def upload_materiais(file: UploadFile = File(...), authorization: Optional[str] 
 # ---------------- Routes - Pendente (novo) ----------------
 
 @app.post("/pendente/upload")
-def pendente_upload(file: UploadFile = File(...), authorization: Optional[str] = None):
+def pendente_upload(file: UploadFile = File(...), authorization: Optional[str] = Header(None)):
     """Faz upload da planilha principal e retorna file_id + sheets"""
     _ = verify_token_header(authorization)
     if not file.filename.lower().endswith((".xlsx", ".xls")):
@@ -191,7 +196,7 @@ def pendente_upload(file: UploadFile = File(...), authorization: Optional[str] =
     return {"file_id": path.name, "sheets": sheets, "original_filename": file.filename}
 
 @app.get("/pendente/options")
-def pendente_options(file_id: str = Query(...), sheet: str = Query(...), authorization: Optional[str] = None):
+def pendente_options(file_id: str = Query(...), sheet: str = Query(...), authorization: Optional[str] = Header(None)):
     """Retorna valores únicos para montar filtros no front"""
     _ = verify_token_header(authorization)
     path = TMP_DIR / file_id
@@ -235,7 +240,7 @@ def pendente_process(
     nome_do_relatorio: Optional[str] = Form("saida.xlsx"),
     planilha_prazos: Optional[UploadFile] = File(None),
     pagina_guia: Optional[UploadFile] = File(None),
-    authorization: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
 ):
     """Aplica filtros e processa a planilha; retorna .xlsx para download"""
     _ = verify_token_header(authorization)
@@ -357,7 +362,7 @@ def pendente_process(
     return make_response_file(df_out, filename=filename)
 
 @app.post("/pendente/filters/save")
-def pendente_save_filter(payload: Dict[str, Any], authorization: Optional[str] = None):
+def pendente_save_filter(payload: Dict[str, Any], authorization: Optional[str] = Header(None)):
     _ = verify_token_header(authorization)
     try:
         if FILTERS_FILE.exists():
@@ -375,7 +380,7 @@ def pendente_save_filter(payload: Dict[str, Any], authorization: Optional[str] =
     return {"success": True, "message": f"Filtro '{payload.get('name')}' salvo."}
 
 @app.get("/pendente/filters/list")
-def pendente_list_filters(authorization: Optional[str] = None):
+def pendente_list_filters(authorization: Optional[str] = Header(None)):
     _ = verify_token_header(authorization)
     if not FILTERS_FILE.exists():
         return {"filters": []}
@@ -385,9 +390,10 @@ def pendente_list_filters(authorization: Optional[str] = None):
         data = []
     return {"filters": data}
 
+
 # ---------------- Routes - Rastreador ----------------
 @app.post("/rastreador/abrir-site")
-def rastreador_abrir_site(authorization: Optional[str] = None):
+def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
     if info["role"] != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado: somente administradores")
@@ -395,7 +401,7 @@ def rastreador_abrir_site(authorization: Optional[str] = None):
     navegador = None
     try:
         options = webdriver.ChromeOptions()
-        options.add_argument("--headless=new")
+        # options.add_argument("--headless=new")  # pode remover para testar
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
@@ -404,37 +410,72 @@ def rastreador_abrir_site(authorization: Optional[str] = None):
         navegador = webdriver.Chrome(options=options)
         navegador.get("https://web.hapolo.com.br/")
 
-        WebDriverWait(navegador, 20).until(EC.presence_of_element_located((By.XPATH, '//*[@id="id_user"]')))
-        navegador.find_element(By.XPATH, '//*[@id="id_user"]').send_keys("psbltda")
-        navegador.find_element(By.XPATH, '//input[@name="password"]').send_keys("010203" + Keys.RETURN)
+        wait = WebDriverWait(navegador, 30)
 
-        WebDriverWait(navegador, 20).until(lambda d: "hapolo" in d.current_url.lower())
+        # Aguarda real carregamento
+        campo_user = wait.until(
+            EC.visibility_of_element_located((By.ID, "id_user"))
+        )
+
+        # Clicar no input com movimento real
+        actions = ActionChains(navegador)
+        actions.move_to_element(campo_user).click().perform()
+        time.sleep(0.4)
+
+        # Clica de novo só pra garantir foco
+        actions.move_to_element(campo_user).click().perform()
+        time.sleep(0.4)
+
+        # Digitação “humana”
+        for letra in "psbltda":
+            campo_user.send_keys(letra)
+            time.sleep(0.05)
+
+        campo_pass = navegador.find_element(By.ID, "id_password")
+
+        actions.move_to_element(campo_pass).click().perform()
+        time.sleep(0.3)
+
+        for letra in "010203":
+            campo_pass.send_keys(letra)
+            time.sleep(0.05)
+
+        campo_pass.send_keys(Keys.RETURN)
+
+        # Aguarda login completar
+        wait.until(lambda d: "hapolo" in d.current_url.lower())
 
         cookies = navegador.get_cookies()
         titulo = navegador.title
-        return {"status": "success", "mensagem": "✅ Login realizado no Hapolo!", "title": titulo, "cookies": cookies}
-    except (TimeoutException, WebDriverException) as e:
-        logger.exception("Erro rastreador: %s", e)
-        raise HTTPException(status_code=500, detail=f"Erro no rastreador: {str(e)}")
-    finally:
-        try:
-            if navegador:
-                navegador.quit()
-        except Exception:
-            logger.exception("Erro quit navegador")
+
+        return {"status": "success", "mensagem": "Login concluído!", "title": titulo, "cookies": cookies}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+
+
+
+
 
 # ---------------- Admin / util ----------------
 @app.post("/admin/cleanup")
-def admin_cleanup(authorization: Optional[str] = None, older_than_hours: int = 24):
+def admin_cleanup(authorization: Optional[str] = Header(None), older_than_hours: int = 24):
     info = verify_token_header(authorization)
     if info["role"] != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado")
     removed = cleanup_temp_files(older_than_seconds=older_than_hours * 3600)
     return {"removed_files": removed}
 
+
+
+
 # ---------------- Run ----------------
 if __name__ == "__main__":
     import uvicorn
     logger.info("Iniciando FastAPI em http://0.0.0.0:5055")
     uvicorn.run("main:app", host="0.0.0.0", port=5055, log_level="info")
-     

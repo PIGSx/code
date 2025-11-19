@@ -31,5 +31,30 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// 🔥 **Intercepta respostas com erro de token e volta pro login**
+api.interceptors.response.use(
+  (response) => response,
+
+  (error) => {
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
+      // Remove token salvo
+      localStorage.removeItem("token");
+
+      // Pausa o modo exibição, se existir
+      if (window.pauseExibicao) {
+        window.pauseExibicao();
+      }
+
+      // Redireciona para a tela de login
+      window.location.href = "/login";
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export default api;
 export { API_URL };
