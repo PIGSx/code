@@ -10,10 +10,9 @@ from base64 import b64encode
 from typing import List, Optional, Dict, Any
 
 import pandas as pd
-from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Query, Header
+from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Query, Header, Body
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Header
 
 # Selenium imports (usados pelo rastreador)
 from selenium import webdriver
@@ -23,8 +22,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException, WebDriverException
-
-
 
 # ---------------- Config ----------------
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
@@ -50,9 +47,11 @@ app.add_middleware(
 
 # ---------------- Auth (reaproveita sua lista) ----------------
 allowed_credentials = {
-    "jaya": {"password": "697843", "role": "comum"},
+    "jaya": {"password": "697843", "role": "admin"},
     "hiury": {"password": "thebest", "role": "admin"},
-    "renan": {"password": "renan2025", "role": "comum"}
+    "renan": {"password": "renan2025", "role": "admin"},
+    "ana": {"password": "deusa", "role": "admin"},
+    "NovaSP": {"password": "cmnsp2025", "role": "comum"}
 }
 active_tokens: Dict[str, Dict[str, Any]] = {}
 TOKEN_EXPIRATION = 3600  # segundos
@@ -126,7 +125,7 @@ def cleanup_temp_files(older_than_seconds: int = 60*60*24):
 
 # ---------------- Routes - Auth ----------------
 @app.post("/login")
-def login(payload: Dict[str, str]):
+def login(payload: Dict[str, str] = Body(...)):
     username = payload.get("username")
     password = payload.get("password")
     if not username or not password:
@@ -138,7 +137,7 @@ def login(payload: Dict[str, str]):
     raise HTTPException(status_code=401, detail="Usuário ou senha inválidos")
 
 @app.post("/logout")
-def logout(payload: Dict[str, str]):
+def logout(payload: Dict[str, str] = Body(...)):
     token = payload.get("token")
     if token and token in active_tokens:
         del active_tokens[token]
@@ -204,6 +203,7 @@ def pendente_options(file_id: str = Query(...), sheet: str = Query(...), authori
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
     try:
         df = pd.read_excel(path, sheet_name=sheet)
+        df.columns = [c.strip() for c in df.columns]
     except Exception as e:
         logger.exception("Erro abrir aba: %s", e)
         raise HTTPException(status_code=400, detail=f"Erro ao abrir aba: {e}")
@@ -290,9 +290,9 @@ def pendente_process(
                 '4600060108 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ',
                 '9999999999 - SABESP'
             ])]
+        # MOD: preserve leading zeros / preserve the left part before '-' if present
         if 'ATC' in df_main.columns:
-            # keep digits portion similar to your original extraction
-            df_main['ATC'] = df_main['ATC'].astype(str).str.extract(r'(\d+)')[0]
+            df_main['ATC'] = df_main['ATC'].astype(str).fillna('').str.split('-').str[0].str.strip()
         if 'Descrição TSS' in df_main.columns:
             df_main = df_main[df_main['Descrição TSS'] != 'TROCAR HIDRÔMETRO PREVENTIVA AGENDADA']
     except Exception:
@@ -305,8 +305,15 @@ def pendente_process(
             # keep column formatting consistent
             df_merge = pd.merge(df_merge, df_prazos[['Descrição TSS', 'PRAZO (HORAS)']], on='Descrição TSS', how='left')
         if df_log is not None and 'Logradouro' in df_log.columns and 'Página Guia' in df_log.columns:
-            # merge by index (similar to your original)
-            df_merge = pd.merge(df_merge, df_log[['Logradouro', 'Página Guia']], left_index=True, right_index=True, how='left')
+            # MOD: merge safely and avoid duplicate Página Guia columns
+            df_log_subset = df_log[['Logradouro', 'Página Guia']].copy()
+            # ensure no duplicated column names appear after merge by using suffixes
+            df_merge = pd.merge(df_merge, df_log_subset, left_index=True, right_index=True, how='left', suffixes=('', '_log'))
+            # if Página Guia exists twice, prefer the original then the log version
+            if 'Página Guia_log' in df_merge.columns and 'Página Guia' in df_merge.columns:
+                df_merge['Página Guia'] = df_merge['Página Guia'].fillna(df_merge['Página Guia_log'])
+                df_merge.drop(columns=['Página Guia_log'], errors='ignore', inplace=True)
+            # drop temporary Logradouro if present
             if 'Logradouro' in df_merge.columns:
                 df_merge.drop(columns=['Logradouro'], errors='ignore', inplace=True)
     except Exception:
@@ -321,11 +328,12 @@ def pendente_process(
         if atcs:
             atcs_lst = json.loads(atcs)
             if atcs_lst:
-                df_merge = df_merge[df_merge['ATC'].isin(atcs_lst)]
+                # MOD: compare as strings (frontend should send strings)
+                df_merge = df_merge[df_merge['ATC'].astype(str).isin([str(x) for x in atcs_lst])]
         if descricoes:
             descricoes_lst = json.loads(descricoes)
             if descricoes_lst:
-                df_merge = df_merge[df_merge['Descrição TSS'].isin(descricoes_lst)]
+                df_merge = df_merge[df_merge['Descrição TSS'].astype(str).isin([str(x) for x in descricoes_lst])]
     except Exception as e:
         logger.exception("Erro ao aplicar filtros recebidos: %s", e)
         raise HTTPException(status_code=400, detail=f"Erro ao aplicar filtros: {e}")
@@ -362,7 +370,7 @@ def pendente_process(
     return make_response_file(df_out, filename=filename)
 
 @app.post("/pendente/filters/save")
-def pendente_save_filter(payload: Dict[str, Any], authorization: Optional[str] = Header(None)):
+def pendente_save_filter(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(None)):
     _ = verify_token_header(authorization)
     try:
         if FILTERS_FILE.exists():
@@ -451,16 +459,14 @@ def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
         return {"status": "success", "mensagem": "Login concluído!", "title": titulo, "cookies": cookies}
 
     except Exception as e:
+        logger.exception("Erro rastreador: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
-
-
-
-
-
-
-
-
-
+    finally:
+        try:
+            if navegador:
+                navegador.quit()
+        except Exception:
+            pass
 
 # ---------------- Admin / util ----------------
 @app.post("/admin/cleanup")
@@ -470,9 +476,6 @@ def admin_cleanup(authorization: Optional[str] = Header(None), older_than_hours:
         raise HTTPException(status_code=403, detail="Acesso negado")
     removed = cleanup_temp_files(older_than_seconds=older_than_hours * 3600)
     return {"removed_files": removed}
-
-
-
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
