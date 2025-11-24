@@ -180,27 +180,44 @@ def upload_materiais(file: UploadFile = File(...), authorization: Optional[str] 
 
 # ---------------- Routes - Pendente (novo) ----------------
 
+# ---------------- PENDENTE - UPLOAD / OPTIONS / PROCESS ----------------
+
 @app.post("/pendente/upload")
 def pendente_upload(file: UploadFile = File(...), authorization: Optional[str] = Header(None)):
     """Faz upload da planilha principal e retorna file_id + sheets"""
     _ = verify_token_header(authorization)
+
     if not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Envie apenas arquivos .xlsx/.xls")
+
     path = save_uploaded_file(file)
+
     try:
         sheets = read_workbook_sheets(path)
     except Exception as e:
         logger.exception("Erro leitura sheets: %s", e)
         raise HTTPException(status_code=400, detail=f"Erro ao ler workbook: {e}")
-    return {"file_id": path.name, "sheets": sheets, "original_filename": file.filename}
+
+    return {
+        "file_id": path.name,
+        "sheets": sheets,
+        "original_filename": file.filename
+    }
+
 
 @app.get("/pendente/options")
-def pendente_options(file_id: str = Query(...), sheet: str = Query(...), authorization: Optional[str] = Header(None)):
+def pendente_options(
+    file_id: str = Query(...),
+    sheet: str = Query(...),
+    authorization: Optional[str] = Header(None)
+):
     """Retorna valores únicos para montar filtros no front"""
     _ = verify_token_header(authorization)
+
     path = TMP_DIR / file_id
     if not path.exists():
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
     try:
         df = pd.read_excel(path, sheet_name=sheet)
         df.columns = [c.strip() for c in df.columns]
@@ -208,9 +225,9 @@ def pendente_options(file_id: str = Query(...), sheet: str = Query(...), authori
         logger.exception("Erro abrir aba: %s", e)
         raise HTTPException(status_code=400, detail=f"Erro ao abrir aba: {e}")
 
-    resp: Dict[str, Any] = {}
-    # Colunas que seu Tkinter usa
     wanted = ["Contrato", "ATC", "Descrição TSS", "Família", "Endereço", "Número", "Complemento"]
+    resp = {}
+
     for col in wanted:
         if col in df.columns:
             vals = df[col].astype(str).fillna("").unique().tolist()
@@ -218,23 +235,28 @@ def pendente_options(file_id: str = Query(...), sheet: str = Query(...), authori
         else:
             resp[col] = []
 
-    # Agrupar descrições por família (útil para exibir agrupado)
+    # Descrições agrupadas por família
+    grupos = {}
     if "Família" in df.columns and "Descrição TSS" in df.columns:
-        grupos: Dict[str, List[str]] = {}
         for fam in df["Família"].dropna().unique():
-            descrs = df.loc[df["Família"] == fam, "Descrição TSS"].dropna().astype(str).unique().tolist()
+            descrs = (
+                df.loc[df["Família"] == fam, "Descrição TSS"]
+                .dropna()
+                .astype(str)
+                .unique()
+                .tolist()
+            )
             grupos[str(fam)] = descrs
-        resp["Descricoes_por_Familia"] = grupos
-    else:
-        resp["Descricoes_por_Familia"] = {}
 
+    resp["Descricoes_por_Familia"] = grupos
     return JSONResponse(resp)
+
 
 @app.post("/pendente/process")
 def pendente_process(
     file_id: str = Form(...),
     sheet: str = Form(...),
-    contratos: Optional[str] = Form(None),    # expected JSON string: '["A","B"]'
+    contratos: Optional[str] = Form(None),
     atcs: Optional[str] = Form(None),
     descricoes: Optional[str] = Form(None),
     nome_do_relatorio: Optional[str] = Form("saida.xlsx"),
@@ -242,161 +264,145 @@ def pendente_process(
     pagina_guia: Optional[UploadFile] = File(None),
     authorization: Optional[str] = Header(None),
 ):
-    """Aplica filtros e processa a planilha; retorna .xlsx para download"""
+    """Aplica filtros e processa a planilha; retorna .xlsx"""
     _ = verify_token_header(authorization)
+
+    # -------------------- Carregar planilha principal --------------------
     path = TMP_DIR / file_id
     if not path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado (faça upload primeiro).")
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
     try:
-        df_main = pd.read_excel(path, sheet_name=sheet)
-        df_main.columns = [c.strip() for c in df_main.columns]
+        df = pd.read_excel(path, sheet_name=sheet)
+        df.columns = [c.strip() for c in df.columns]
     except Exception as e:
-        logger.exception("Erro ler planilha principal: %s", e)
-        raise HTTPException(status_code=400, detail=f"Erro ao ler planilha principal: {e}")
+        logger.exception("Erro ler planilha: %s", e)
+        raise HTTPException(status_code=400, detail=f"Erro ao ler planilha: {e}")
 
-    # optional merges
+    # -------------------- Ajustes iniciais --------------------
+    if "Data de Competência" in df.columns:
+        df["Data de Competência"] = pd.to_datetime(df["Data de Competência"], errors="coerce")
+
+    if "Data Inserção" in df.columns:
+        df["Data Inserção"] = pd.to_datetime(df["Data Inserção"], errors="coerce")
+
+    # Excluir famílias
+    if "Família" in df.columns:
+        df = df[~df["Família"].isin(["FISCALIZAÇÃO", "VISTORIA"])]
+
+    # Excluir contratos indesejados
+    contratos_banidos = [
+        "4600042975 - CONSORCIO MANUTENÇÃO SUZANO ZC",
+        "4600054507 - ENOPS ENGENHARIA S/A.",
+        "4600054538 - CONSÓRCIO LEITURA ITAQUERA",
+        "4600057156 - CONSÓRCIO DARWIN TB LESTE",
+        "4600060030 - CONSÓRCIO AMPLIA REDE LESTE",
+        "4600060107 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ",
+        "4600060108 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ",
+        "9999999999 - SABESP"
+    ]
+    if "Contrato" in df.columns:
+        df = df[~df["Contrato"].isin(contratos_banidos)]
+
+    # ATC tratado
+    if "ATC" in df.columns:
+        df["ATC"] = (
+            df["ATC"]
+            .astype(str)
+            .str.split("-")
+            .str[0]
+            .str.strip()
+        )
+
+    # Excluir descrição específica
+    if "Descrição TSS" in df.columns:
+        df = df[df["Descrição TSS"] != "TROCAR HIDRÔMETRO PREVENTIVA AGENDADA"]
+
+    # -------------------- Carregar planilha de prazos --------------------
     df_prazos = None
-    df_log = None
-    try:
-        if planilha_prazos:
+    if planilha_prazos:
+        try:
             df_prazos = pd.read_excel(planilha_prazos.file)
             df_prazos.columns = [c.strip() for c in df_prazos.columns]
-        if pagina_guia:
-            df_log = pd.read_excel(pagina_guia.file)
-            df_log.columns = [c.strip() for c in df_log.columns]
-    except Exception as e:
-        logger.exception("Erro ler arquivos opcionais: %s", e)
-        raise HTTPException(status_code=400, detail=f"Erro ao ler arquivos opcionais: {e}")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Erro prazos: {e}")
 
-    # date conversions (safe)
-    if 'Data de Competência' in df_main.columns:
-        df_main['Data de Competência'] = pd.to_datetime(df_main['Data de Competência'], errors='coerce')
-    if 'Data Inserção' in df_main.columns:
-        df_main['Data Inserção'] = pd.to_datetime(df_main['Data Inserção'], errors='coerce')
+    # -------------------- Carregar Página Guia --------------------
+    df_guia = None
+    if pagina_guia:
+        try:
+            df_guia = pd.read_excel(pagina_guia.file)
+            df_guia.columns = [c.strip() for c in df_guia.columns]
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Erro guia: {e}")
 
-    # apply exclusions identical to your previous logic
-    try:
-        if 'Família' in df_main.columns:
-            df_main = df_main[~df_main['Família'].isin(['FISCALIZAÇÃO', 'VISTORIA'])]
-        if 'Contrato' in df_main.columns:
-            df_main = df_main[~df_main['Contrato'].isin([
-                '4600042975 - CONSORCIO MANUTENÇÃO SUZANO ZC',
-                '4600054507 - ENOPS ENGENHARIA S/A.',
-                '4600054538 - CONSÓRCIO LEITURA ITAQUERA',
-                '4600057156 - CONSÓRCIO DARWIN TB LESTE',
-                '4600060030 - CONSÓRCIO AMPLIA REDE LESTE',
-                '4600060107 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ',
-                '4600060108 - CONSÓRCIO AMPLIA REDE ALTO TIETÊ',
-                '9999999999 - SABESP'
-            ])]
-        # MOD: preserve leading zeros / preserve the left part before '-' if present
-        if 'ATC' in df_main.columns:
-            df_main['ATC'] = df_main['ATC'].astype(str).fillna('').str.split('-').str[0].str.strip()
-        if 'Descrição TSS' in df_main.columns:
-            df_main = df_main[df_main['Descrição TSS'] != 'TROCAR HIDRÔMETRO PREVENTIVA AGENDADA']
-    except Exception:
-        logger.exception("Erro aplicar exclusoes iniciais")
-
-    # merge prazos and log if provided (preservando index behavior)
-    df_merge = df_main.copy()
-    try:
-        if df_prazos is not None and 'Descrição TSS' in df_prazos.columns:
-            # keep column formatting consistent
-            df_merge = pd.merge(df_merge, df_prazos[['Descrição TSS', 'PRAZO (HORAS)']], on='Descrição TSS', how='left')
-        if df_log is not None and 'Logradouro' in df_log.columns and 'Página Guia' in df_log.columns:
-            # MOD: merge safely and avoid duplicate Página Guia columns
-            df_log_subset = df_log[['Logradouro', 'Página Guia']].copy()
-            # ensure no duplicated column names appear after merge by using suffixes
-            df_merge = pd.merge(df_merge, df_log_subset, left_index=True, right_index=True, how='left', suffixes=('', '_log'))
-            # if Página Guia exists twice, prefer the original then the log version
-            if 'Página Guia_log' in df_merge.columns and 'Página Guia' in df_merge.columns:
-                df_merge['Página Guia'] = df_merge['Página Guia'].fillna(df_merge['Página Guia_log'])
-                df_merge.drop(columns=['Página Guia_log'], errors='ignore', inplace=True)
-            # drop temporary Logradouro if present
-            if 'Logradouro' in df_merge.columns:
-                df_merge.drop(columns=['Logradouro'], errors='ignore', inplace=True)
-    except Exception:
-        logger.exception("Erro ao dar merge com prazos/log")
-
-    # Apply filters sent by frontend
+    # -------------------- Filtros --------------------
     try:
         if contratos:
-            contratos_lst = json.loads(contratos)
-            if contratos_lst:
-                df_merge = df_merge[df_merge['Contrato'].isin(contratos_lst)]
+            lst = json.loads(contratos)
+            df = df[df["Contrato"].isin(lst)]
+
         if atcs:
-            atcs_lst = json.loads(atcs)
-            if atcs_lst:
-                # MOD: compare as strings (frontend should send strings)
-                df_merge = df_merge[df_merge['ATC'].astype(str).isin([str(x) for x in atcs_lst])]
+            lst = json.loads(atcs)
+            df = df[df["ATC"].astype(str).isin([str(x) for x in lst])]
+
         if descricoes:
-            descricoes_lst = json.loads(descricoes)
-            if descricoes_lst:
-                df_merge = df_merge[df_merge['Descrição TSS'].astype(str).isin([str(x) for x in descricoes_lst])]
+            lst = json.loads(descricoes)
+            df = df[df["Descrição TSS"].astype(str).isin(lst)]
     except Exception as e:
-        logger.exception("Erro ao aplicar filtros recebidos: %s", e)
-        raise HTTPException(status_code=400, detail=f"Erro ao aplicar filtros: {e}")
+        raise HTTPException(status_code=400, detail=f"Erro filtros: {e}")
 
-    # Compose Endereço (Número + Complemento) similar ao seu formatar_planilha
-    try:
-        if all(col in df_merge.columns for col in ["Endereço", "Número", "Complemento"]):
-            df_merge['Endereço'] = (
-                df_merge['Endereço'].fillna('').astype(str).str.strip() + ' ' +
-                df_merge['Número'].fillna('').astype(str) + ' ' +
-                df_merge['Complemento'].fillna('').astype(str)
-            ).str.strip()
-            df_merge.drop(columns=['Número', 'Complemento'], errors='ignore', inplace=True)
-    except Exception:
-        logger.exception("Erro montar Endereço completo")
+    # -------------------- Merge prazos --------------------
+    if df_prazos is not None and "PRAZO (HORAS)" in df_prazos.columns:
+        df = df.merge(
+            df_prazos[["Descrição TSS", "PRAZO (HORAS)"]],
+            on="Descrição TSS",
+            how="left"
+        )
 
-    try:
-        if 'PRAZO (HORAS)' in df_merge.columns and 'Data de Competência' in df_merge.columns:
-            df_merge['Data Final'] = df_merge['Data de Competência'] + pd.to_timedelta(df_merge['PRAZO (HORAS)'], unit='h')
-    except Exception:
-        logger.exception("Erro calcular Data Final")
+    # -------------------- Merge Página Guia --------------------
+    if df_guia is not None and "Página Guia" in df_guia.columns:
+        df = df.reset_index(drop=True)
+        df_guia = df_guia.reset_index(drop=True)
 
-    # Select / reorder columns like seu script
-    cols = ['Status', 'Número OS', 'ATC', 'Endereço', 'Bairro', 'Página Guia',
-            'Data de Competência', 'Data Final', 'Descrição TSS',
-            'PRAZO (HORAS)', 'Contrato', 'Causa', 'Resultado']
-    cols = [c for c in cols if c in df_merge.columns]
-    df_out = df_merge[cols].copy()
+        if len(df_guia) >= len(df):
+            df["Página Guia"] = df_guia["Página Guia"]
+        else:
+            df.loc[df_guia.index, "Página Guia"] = df_guia["Página Guia"]
 
-    # Generate and return file
-    filename = nome_do_relatorio or "saida.xlsx"
+    # -------------------- Montar Endereço final --------------------
+    if all(c in df.columns for c in ["Endereço", "Número", "Complemento"]):
+        df["Endereço"] = (
+            df["Endereço"].astype(str).fillna("") + " " +
+            df["Número"].astype(str).fillna("") + " " +
+            df["Complemento"].astype(str).fillna("")
+        ).str.strip()
+
+        df.drop(columns=["Número", "Complemento"], inplace=True, errors="ignore")
+
+    # -------------------- Calcular Data Final --------------------
+    if "PRAZO (HORAS)" in df.columns and "Data de Competência" in df.columns:
+        try:
+            df["Data Final"] = df["Data de Competência"] + pd.to_timedelta(df["PRAZO (HORAS)"], unit="h")
+        except Exception:
+            pass
+
+    # -------------------- Seleção de colunas finais --------------------
+    cols = [
+        "Status", "Número OS", "ATC", "Endereço", "Bairro", "Página Guia",
+        "Data de Competência", "Data Final", "Descrição TSS",
+        "PRAZO (HORAS)", "Contrato", "Causa", "Resultado"
+    ]
+    cols = [c for c in cols if c in df.columns]
+
+    df_out = df[cols].copy()
+
+    # -------------------- Exportação --------------------
+    filename = nome_do_relatorio
     if not filename.lower().endswith(".xlsx"):
         filename += ".xlsx"
+
     return make_response_file(df_out, filename=filename)
-
-@app.post("/pendente/filters/save")
-def pendente_save_filter(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(None)):
-    _ = verify_token_header(authorization)
-    try:
-        if FILTERS_FILE.exists():
-            try:
-                filters = json.loads(FILTERS_FILE.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                filters = []
-        else:
-            filters = []
-        filters.append(payload)
-        FILTERS_FILE.write_text(json.dumps(filters, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception as e:
-        logger.exception("Erro salvar filtro: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
-    return {"success": True, "message": f"Filtro '{payload.get('name')}' salvo."}
-
-@app.get("/pendente/filters/list")
-def pendente_list_filters(authorization: Optional[str] = Header(None)):
-    _ = verify_token_header(authorization)
-    if not FILTERS_FILE.exists():
-        return {"filters": []}
-    try:
-        data = json.loads(FILTERS_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        data = []
-    return {"filters": data}
 
 
 # ---------------- Routes - Rastreador ----------------

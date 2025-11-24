@@ -1,6 +1,6 @@
-// PendenteAPI.jsx — Versão corrigida usando apiAxios.js corretamente
+// PendenteAPI.jsx — Versão FINAL, corrigida e otimizada
 import React, { useState } from "react";
-import api from "../../utils/apiAxios"; // ← AGORA ESTÁ CORRETO
+import api from "../../utils/apiAxios";
 import { Upload, ChevronDown, ChevronUp, DownloadCloud, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,7 +17,6 @@ export default function PendenteAPI() {
   const [loading, setLoading] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
 
-  // Reset filters
   const resetFilters = () => {
     setSelectedContratos([]);
     setSelectedAtcs([]);
@@ -25,13 +24,12 @@ export default function PendenteAPI() {
     setOptions({});
   };
 
-  // File select
   const onFileChange = (e) => {
     setFile(e.target.files[0]);
     setMessage("");
   };
 
-  // UPLOAD FILE
+  // UPLOAD
   const uploadFile = async () => {
     if (!file) return setMessage("Selecione um arquivo primeiro.");
     setLoading(true);
@@ -59,7 +57,7 @@ export default function PendenteAPI() {
     }
   };
 
-  // FETCH FILTER OPTIONS
+  // GET OPTIONS
   const fetchOptions = async (sheet) => {
     if (!fileId || !sheet) return;
 
@@ -81,7 +79,6 @@ export default function PendenteAPI() {
     }
   };
 
-  // Toggle multi select
   const toggleSelect = (list, setList, item) => {
     setList(
       list.includes(item)
@@ -90,10 +87,10 @@ export default function PendenteAPI() {
     );
   };
 
-  // PROCESS FILE
+  // PROCESS FILE — CORRIGIDO
   const processFile = async () => {
     if (!fileId || !selectedSheet)
-      return setMessage("Faça o upload e selecione a aba primeiro.");
+      return setMessage("Faça o upload e selecione a aba.");
 
     setLoading(true);
     setMessage("Processando...");
@@ -102,15 +99,22 @@ export default function PendenteAPI() {
       const fd = new FormData();
       fd.append("file_id", fileId);
       fd.append("sheet", selectedSheet);
-      fd.append("contratos", JSON.stringify(selectedContratos));
-      fd.append("atcs", JSON.stringify(selectedAtcs));
-      fd.append("descricoes", JSON.stringify(selectedDescricoes));
+
+      if (selectedContratos.length > 0)
+        fd.append("contratos", JSON.stringify(selectedContratos));
+
+      if (selectedAtcs.length > 0)
+        fd.append("atcs", JSON.stringify(selectedAtcs));
+
+      if (selectedDescricoes.length > 0)
+        fd.append("descricoes", JSON.stringify(selectedDescricoes));
 
       const nome = "saida.xlsx";
       fd.append("nome_do_relatorio", nome);
 
-      const res = await api.psot("/pendente/process", fd, {
-        responseType: "blob"
+      const res = await api.post("/pendente/process", fd, {
+        responseType: "blob",
+        headers: { "Content-Type": "multipart/form-data" }
       });
 
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -155,26 +159,23 @@ export default function PendenteAPI() {
   // LOAD FILTER
   const loadFilters = async () => {
     setLoading(true);
-
     try {
       const res = await api.get("/pendente/filters/list");
       const filters = res.data.filters || [];
 
-      if (!filters.length) {
-        alert("Nenhum filtro salvo ainda.");
-        return;
-      }
+      if (!filters.length) return alert("Nenhum filtro salvo.");
 
       const list = filters.map((f, i) => `${i + 1}. ${f.name}`).join("\n");
-      const pick = prompt(`Filtros:\n\n${list}\n\nDigite o número:`);
-      const idx = Number(pick) - 1;
+      const pick = prompt(`Filtros:\n\n${list}\n\nNúmero:`);
 
+      const idx = Number(pick) - 1;
       if (!filters[idx]) return;
 
       resetFilters();
       setSelectedContratos(filters[idx].contratos || []);
       setSelectedAtcs(filters[idx].ATCs || []);
       setSelectedDescricoes(filters[idx]["descrições_tss"] || []);
+
       setMessage("Filtro aplicado.");
     } catch (err) {
       console.error(err);
@@ -224,8 +225,8 @@ export default function PendenteAPI() {
           <div className="flex gap-3 mt-3">
             <button
               onClick={uploadFile}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded"
               disabled={loading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded"
             >
               Enviar
             </button>
@@ -294,7 +295,9 @@ export default function PendenteAPI() {
                   title="Descrição TSS"
                   items={options["Descrição TSS"] || []}
                   selected={selectedDescricoes}
-                  toggle={(v) => toggleSelect(selectedDescricoes, setSelectedDescricoes, v)}
+                  toggle={(v) =>
+                    toggleSelect(selectedDescricoes, setSelectedDescricoes, v)
+                  }
                 />
               </div>
             </motion.div>
@@ -327,14 +330,12 @@ export default function PendenteAPI() {
           </button>
         </div>
 
-        {/* MESSAGE */}
         <p className="text-gray-300 text-sm mt-4">{message}</p>
       </motion.div>
     </div>
   );
 }
 
-// Small reusable card component
 function FilterCard({ title, items = [], selected = [], toggle }) {
   return (
     <div className="bg-slate-800 border border-slate-700 rounded p-3">
