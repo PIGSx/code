@@ -2,7 +2,7 @@ import Grid from "../Grid";
 
 export default function Home() {
   return (
-    <div>
+    <div className="min-h-screen bg-white">
       <Grid />
     </div>
   );

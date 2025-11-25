@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearAuth } from "../../utils/auth";
+import { clearAuth, setAuth } from "../../utils/auth";  // <-- IMPORTANTE
 import { User, Lock } from "lucide-react";
 import api from "../../utils/apiAxios";
 
@@ -27,9 +27,13 @@ const LoginPage = () => {
       const res = await api.post("/login", { username, password });
 
       if (res.data?.success && res.data?.token) {
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("username", res.data.user);
-        localStorage.setItem("role", res.data.role);
+        // ⬇️ AQUI É O PONTO CRÍTICO — usando setAuth CERTINHO
+        setAuth(
+          res.data.token,
+          res.data.username || res.data.user || username, 
+          res.data.role || "user",  
+          8 // horas até expirar
+        );
 
         navigate("/", { replace: true });
       } else {

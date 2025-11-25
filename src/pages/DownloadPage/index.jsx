@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Download, Lock } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext"; // Import do ThemeContext
 
 export default function DownloadPage() {
+  const { theme } = useTheme(); // pega o tema atual
+
   const [files] = useState([
     {
       title: "Apoio - prazo",
@@ -13,14 +16,14 @@ export default function DownloadPage() {
       status: true,
     },
     {
-  title: "Pagina Guia",
-  filename: "guia.xlsx",
-  uploadedAt: "1m ago",
-  size: "2.09 mb",
-  type: "xlsx",
-  url: "/downloads/PAGINAGUIA.xlsx",
-  status: true
-},
+      title: "Pagina Guia",
+      filename: "guia.xlsx",
+      uploadedAt: "1m ago",
+      size: "2.09 mb",
+      type: "xlsx",
+      url: "/downloads/PAGINAGUIA.xlsx",
+      status: true,
+    },
     {
       title: "Documentação Technoblade",
       filename: "doc.pdf",
@@ -42,25 +45,33 @@ export default function DownloadPage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-[#0d0d0f] p-8 text-white">
+    <div
+      className={`min-h-screen p-8 ${
+        theme === "dark" ? "bg-[#0d0d0f] text-white" : "bg-white text-gray-900"
+      }`}
+    >
       <h1 className="text-2xl font-semibold mb-6">Arquivos para Download</h1>
-
-      {/* 🔎 (Barra de busca poderá ser ativada aqui futuramente) */}
 
       <div className="space-y-4">
         {files.map((file, index) => (
           <div
             key={index}
-            className="flex items-center justify-between p-4 bg-[#1a1b1f] hover:bg-[#22232a] rounded-xl shadow transition"
+            className={`flex items-center justify-between p-4 rounded-xl shadow transition ${
+              theme === "dark" ? "bg-[#1a1b1f] hover:bg-[#22232a]" : "bg-gray-100 hover:bg-gray-200"
+            }`}
           >
             <div className="flex items-center gap-4">
-              <div className="h-10 w-10 bg-gray-700 rounded-lg flex items-center justify-center text-sm uppercase">
+              <div
+                className={`h-10 w-10 rounded-lg flex items-center justify-center text-sm uppercase ${
+                  theme === "dark" ? "bg-gray-700" : "bg-gray-300"
+                }`}
+              >
                 {file.type}
               </div>
 
               <div>
                 <div className="font-semibold">{file.title}</div>
-                <div className="text-xs text-gray-400">
+                <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                   {file.filename} · {file.uploadedAgo} · {file.size}
                 </div>
               </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../../utils/apiAxios";
 import ModalAutoinicializacao from "../Modal";
+import ThemeToggle from "../ThemeToggle";
 
 const Navbar = () => {
   const [user, setUser] = useState(localStorage.getItem("username") || null);
@@ -382,6 +383,12 @@ const Navbar = () => {
       />
     </header>
   );
+  
+  
 };
+
+<div className="flex items-center gap-4">
+   <ThemeToggle />
+</div>
 
 export default Navbar;

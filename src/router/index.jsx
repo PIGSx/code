@@ -3,27 +3,35 @@ import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Home from "../pages/Home";
 import Download from "../pages/DownloadPage";
-import Carteira from "../pages/PowerBI/Carteira";
-import Rastreador from "../pages/PowerBI/Maps";
-import Petrac from "../pages/PowerBI/Petrac";
-import Pendente from "../pages/Pendente";
-import Materiais from "../pages/Materiais";
-import Polos from "../pages/Polos";
-import Itaim from "../pages/PowerBI/Polos/Itaim";
-import Penha from "../pages/PowerBI/Polos/Penha";
-import SM from "../pages/PowerBI/Polos/SM";
-import MateriaisList from "../pages/Materiais/MateriaisList";
-import MateriaisApp from "../pages/Materiais/MateriaisApp";
+import Carteira from "../pages/Dashs/Carteira";
+import Rastreador from "../pages/Aplicativos/Rastreador";
+import Petrac from "../pages/Dashs/Petrac";
+import Pendente from "../pages/Aplicativos/Pendente";
+import Materiais from "../pages/Aplicativos/Materiais";
+import Polos from "../pages/Dashs/Polos";
+import Itaim from "../pages/Dashs/Polos/Itaim";
+import Penha from "../pages/Dashs/Polos/Penha";
+import SM from "../pages/Dashs/Polos/SM";
+import MateriaisList from "../pages/Aplicativos/Materiais/MateriaisList";
+import MateriaisApp from "../pages/Aplicativos/Materiais/MateriaisApp";
 import PageNotFound from "../components/PageNotFound";
 import LoginPage from "../pages/Login";
 
 import BotaoVoltar from "../components/BackBotton";
 import { isAuthenticated } from "../utils/auth";
 
-const DefaultLayout = () => {
+
+// 🔒 Componente de Rota Protegida
+const PrivateRoute = ({ children }) =>
+  isAuthenticated() ? children : <Navigate to="/login" replace />;
+
+
+// 🔒 Layout só aparece se estiver logado
+const PrivateLayout = () => {
   const { pathname } = useLocation();
-  const logged = isAuthenticated();
-  const showBack = logged && pathname !== "/" && pathname !== "/login";
+  const showBack =
+    pathname !== "/" &&
+    pathname !== "/login";
 
   return (
     <>
@@ -40,30 +48,37 @@ const DefaultLayout = () => {
   );
 };
 
-const PrivateRoute = ({ children }) =>
-  isAuthenticated() ? children : <Navigate to="/login" replace />;
 
 export default function RoutsPage() {
   return (
     <Routes>
+      {/* 🔓 Login é público */}
       <Route path="/login" element={<LoginPage />} />
 
-      <Route element={<DefaultLayout />}>
-        <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
-        <Route path="/carteira" element={<PrivateRoute><Carteira /></PrivateRoute>} />
-        <Route path="/rastreador" element={<PrivateRoute><Rastreador /></PrivateRoute>} />
-        <Route path="/download" element={<PrivateRoute><Download /></PrivateRoute>} />
-        <Route path="/ptrac" element={<PrivateRoute><Petrac /></PrivateRoute>} />
-        <Route path="/pendente" element={<PrivateRoute><Pendente /></PrivateRoute>} />
-        <Route path="/materiais" element={<PrivateRoute><Materiais /></PrivateRoute>} />
-        <Route path="/polos" element={<PrivateRoute><Polos /></PrivateRoute>} />
-        <Route path="/itaim" element={<PrivateRoute><Itaim /></PrivateRoute>} />
-        <Route path="/penha" element={<PrivateRoute><Penha /></PrivateRoute>} />
-        <Route path="/sm" element={<PrivateRoute><SM /></PrivateRoute>} />
-        <Route path="/materiaislist" element={<PrivateRoute><MateriaisList /></PrivateRoute>} />
-        <Route path="/materiaisapp" element={<PrivateRoute><MateriaisApp /></PrivateRoute>} />
+      {/* 🔒 Tudo aqui dentro é protegido */}
+      <Route
+        element={
+          <PrivateRoute>
+            <PrivateLayout />
+          </PrivateRoute>
+        }
+      >
+        <Route path="/" element={<Home />} />
+        <Route path="/carteira" element={<Carteira />} />
+        <Route path="/rastreador" element={<Rastreador />} />
+        <Route path="/download" element={<Download />} />
+        <Route path="/ptrac" element={<Petrac />} />
+        <Route path="/pendente" element={<Pendente />} />
+        <Route path="/materiais" element={<Materiais />} />
+        <Route path="/polos" element={<Polos />} />
+        <Route path="/itaim" element={<Itaim />} />
+        <Route path="/penha" element={<Penha />} />
+        <Route path="/sm" element={<SM />} />
+        <Route path="/materiaislist" element={<MateriaisList />} />
+        <Route path="/materiaisapp" element={<MateriaisApp />} />
       </Route>
 
+      {/* Página 404 */}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

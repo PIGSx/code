@@ -11,10 +11,14 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #000;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Background universal do modo escuro */
+.dark .dark-bg {
+  @apply bg-gradient-to-b from-gray-900 via-gray-950 to-black text-gray-100;
 }
