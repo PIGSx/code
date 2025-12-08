@@ -47,7 +47,7 @@ export default function DownloadPage() {
   return (
     <div
       className={`min-h-screen p-8 ${
-        theme === "dark" ? "bg-[#0d0d0f] text-white" : "bg-white text-gray-900"
+        theme === "dark" ? "text-white" : "bg-white text-gray-900"
       }`}
     >
       <h1 className="text-2xl font-semibold mb-6">Arquivos para Download</h1>

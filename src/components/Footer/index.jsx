@@ -24,7 +24,7 @@ const Footer = () => {
             ${
               theme === "dark"
                 ? "text-[#2c9c49]"
-                : "text-purple-300/60"
+                : "text-[#7C3AED]"
             }
           `}
         >
