@@ -8,7 +8,7 @@ import Rastreador from "../pages/Aplicativos/Rastreador";
 import Petrac from "../pages/Dashs/Petrac";
 import Pendente from "../pages/Aplicativos/Pendente";
 import Materiais from "../pages/Aplicativos/Materiais";
-import Polos from "../pages/Dashs/Polos";
+import Polos from "../pages/Dashs";
 import Itaim from "../pages/Dashs/Polos/Itaim";
 import Penha from "../pages/Dashs/Polos/Penha";
 import SM from "../pages/Dashs/Polos/SM";
