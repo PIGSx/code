@@ -73,39 +73,37 @@ export default function Grid() {
 
   return (
     <div
-      className={`min-h-screen p-8 transition-colors duration-300
-        ${
-          theme === "dark"
-            ? "bg-gradient-to-b from-gray-900 via-gray-950 to-black text-gray-100"
-            : "bg-gray-50 text-gray-900"
-        }`}
+      className={`min-h-screen p-8 transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gradient-to-b from-gray-900 via-gray-950 to-black text-gray-100"
+          : "bg-gray-50 text-gray-900"
+      }`}
     >
       {/* CABEÇALHO */}
       <div className="flex gap-6 mb-10 justify-center">
-
         {/* BOTÃO APLICATIVOS */}
         <button
           onClick={() => handleClick("apps")}
           className={`
             relative flex flex-col items-center gap-3 px-7 py-6 rounded-3xl 
             transition-all duration-300 w-52 shadow-md overflow-hidden
-            
+
             ${
               activeCategory === "apps"
-                ? "bg-blue-600 text-white scale-105 shadow-blue-500/40"
+                ? "bg-gray-300 dark:bg-gray-700 text-black dark:text-white scale-105"
                 : `
                   bg-white dark:bg-gray-800
                   text-black dark:text-white
-                  border border-gray-200 dark:border-gray-700 
+                  border border-gray-300 dark:border-gray-700
+                  hover:bg-gray-200 dark:hover:bg-gray-700
                   hover:scale-105 hover:shadow-xl
                 `
             }
           `}
         >
-          {/* LINHA ANIMADA PRETA (somente quando não está ativo) */}
           {activeCategory !== "apps" && (
             <motion.div
-              className="absolute top-0 left-0 h-1 bg-black"
+              className="absolute top-0 left-0 h-1 bg-black/30 dark:bg-white/30"
               initial={{ width: "0%" }}
               animate={{ width: ["0%", "100%", "0%"] }}
               transition={{
@@ -135,20 +133,20 @@ export default function Grid() {
 
             ${
               activeCategory === "dash"
-                ? "bg-blue-600 text-white scale-105 shadow-blue-500/40"
+                ? "bg-gray-300 dark:bg-gray-700 text-black dark:text-white scale-105"
                 : `
                   bg-white dark:bg-gray-800
                   text-black dark:text-white
-                  border border-gray-200 dark:border-gray-700
+                  border border-gray-300 dark:border-gray-700
+                  hover:bg-gray-200 dark:hover:bg-gray-700
                   hover:scale-105 hover:shadow-xl
                 `
             }
           `}
         >
-          {/* LINHA ANIMADA PRETA */}
           {activeCategory !== "dash" && (
             <motion.div
-              className="absolute top-0 left-0 h-1 bg-black"
+              className="absolute top-0 left-0 h-1 bg-black/30 dark:bg-white/30"
               initial={{ width: "0%" }}
               animate={{ width: ["0%", "100%", "0%"] }}
               transition={{
@@ -207,12 +205,19 @@ export default function Grid() {
                   ) : (
                     <Link
                       to={course.path}
-                      className="group block relative p-10 rounded-3xl bg-white dark:bg-gray-900 shadow-xl border border-gray-200 dark:border-gray-700"
+                      className={`
+    group block relative p-10 rounded-3xl shadow-xl border border-gray-700/40
+    ${
+      theme === "dark"
+        ? "bg-gradient-to-br from-[#252440] via-[#2f2c79] to-[#5a34f6]"
+        : "bg-gradient-to-br from-white via-[#dce4ff] to-[#b9c8ff]"
+    }
+  `}
                     >
                       {/* CÍRCULO COLORIDO */}
                       <div
-                        className="absolute w-40 h-40 rounded-full blur-3xl opacity-40 top-[-80px] right-[-80px] transition-all duration-700 
-                          group-hover:scale-[6]"
+                        className="absolute w-40 h-40 rounded-full blur-3xl opacity-40 top-[-80px] right-[-80px] 
+                          transition-all duration-700 group-hover:scale-[6]"
                         style={{ backgroundColor: bgColor }}
                       />
 
@@ -220,7 +225,7 @@ export default function Grid() {
                       <div
                         className={`
                           relative text-3xl font-extrabold tracking-wide drop-shadow-md
-                          ${theme === "dark" ? "text-white" : "text-gray-900"}
+                          ${theme === "dark" ? "text-white" : "text-black"}
                         `}
                       >
                         {course.title}
@@ -229,13 +234,8 @@ export default function Grid() {
                       {/* LINHA DECORATIVA */}
                       <div
                         className={`
-                          relative w-16 h-[3px] mt-4 rounded-full transition-all duration-300
-                          group-hover:w-24
-                          ${
-                            theme === "dark"
-                              ? "bg-white/70"
-                              : "bg-gray-900/70"
-                          }
+                          relative w-16 h-[3px] mt-4 rounded-full transition-all duration-300 group-hover:w-24
+                          ${theme === "dark" ? "bg-white/80" : "bg-black/80"}
                         `}
                       />
                     </Link>

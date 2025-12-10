@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Upload, Search } from "lucide-react";
 import api from "../../../../utils/apiAxios";
 import { getRole } from "../../../../utils/auth";
+import { useTheme } from "../../../../context/ThemeContext"; // ⬅️ IMPORT DO TEMA
 
 export default function MateriaisList() {
+  const { theme } = useTheme(); // ⬅️ Garante reatividade ao darkmode
+
   const [materiais, setMateriais] = useState([]);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
@@ -38,6 +41,7 @@ export default function MateriaisList() {
     const nome = String(m["Descrição Material SAP"] || "").toLowerCase();
     const codigo = String(m["Codigo Material SAP"] || "").toLowerCase();
     const cat = String(m["CATEGORIA"] || "");
+
     return (
       (nome.includes(search.toLowerCase()) ||
         codigo.includes(search.toLowerCase())) &&
@@ -67,7 +71,10 @@ export default function MateriaisList() {
     [loading, filtered.length, paginated.length]
   );
 
-  const categorias = ["Todos", ...new Set(materiais.map((m) => m["CATEGORIA"]).filter(Boolean))];
+  const categorias = [
+    "Todos",
+    ...new Set(materiais.map((m) => m["CATEGORIA"]).filter(Boolean)),
+  ];
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -94,17 +101,16 @@ export default function MateriaisList() {
   };
 
   return (
-    // ❌ removido fundo fixo da página
-    // ✔ agora herda automático do App + darkmode futuramente
     <div className="min-h-screen flex flex-col items-center py-10 px-4">
-
-      <h1 className="text-3xl font-extrabold tracking-tight 
+      <h1
+        className="text-3xl font-extrabold tracking-tight 
         bg-gradient-to-r from-blue-400 to-cyan-300 
-        bg-clip-text text-transparent mb-8">
+        bg-clip-text text-transparent mb-8"
+      >
         Lista de Materiais
       </h1>
 
-      {/* Barra de Filtro */}
+      {/* Filtros */}
       <div className="w-full max-w-5xl mb-8 flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -116,7 +122,7 @@ export default function MateriaisList() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="w-full bg-gray-200 dark:bg-gray-800 
+            className="w-full bg-gray-200 dark:bg-gray-800
               border border-gray-300 dark:border-gray-700 
               rounded-lg px-10 py-2 
               text-gray-900 dark:text-gray-200 
@@ -141,29 +147,35 @@ export default function MateriaisList() {
         </select>
       </div>
 
-      {/* Upload (somente admin) */}
+      {/* Upload */}
       {role?.toLowerCase() === "admin" && (
         <div className="w-full max-w-5xl mb-6 flex justify-between items-center">
-          <label className="flex items-center gap-2 cursor-pointer 
+          <label
+            className="flex items-center gap-2 cursor-pointer 
             bg-green-600/80 hover:bg-green-700 px-4 py-2 
-            rounded-lg transition-all text-white">
+            rounded-lg transition-all text-white"
+          >
             <Upload className="w-5 h-5" />
             <span>Enviar nova planilha</span>
             <input type="file" onChange={handleUpload} className="hidden" />
           </label>
-          {message && <p className="text-gray-600 dark:text-gray-400 text-sm">{message}</p>}
+          {message && (
+            <p className="text-gray-600 dark:text-gray-400 text-sm">{message}</p>
+          )}
         </div>
       )}
 
-      {/* Lista de Materiais */}
-      <div className="w-full max-w-5xl 
+      {/* Lista */}
+      <div
+        className="w-full max-w-5xl 
         bg-white/40 dark:bg-gray-900/60 
         backdrop-blur-lg shadow-xl rounded-2xl 
         border border-gray-300 dark:border-gray-800 
-        divide-y divide-gray-300 dark:divide-gray-800">
-
+        divide-y divide-gray-300 dark:divide-gray-800"
+      >
         {paginated.map((m, index) => {
           const isLast = index === paginated.length - 1;
+
           return (
             <div
               key={m["Codigo Material SAP"] || index}
@@ -180,11 +192,13 @@ export default function MateriaisList() {
                 </p>
               </div>
 
-              <span className="text-sm 
+              <span
+                className="text-sm 
                 bg-blue-600/10 dark:bg-blue-600/20 
                 text-blue-700 dark:text-blue-300 
                 px-3 py-1 rounded-full mt-2 md:mt-0 
-                border border-blue-700/20 dark:border-blue-700/30">
+                border border-blue-700/20 dark:border-blue-700/30"
+              >
                 {m["CATEGORIA"]}
               </span>
             </div>

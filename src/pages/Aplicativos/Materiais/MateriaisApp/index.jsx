@@ -10,6 +10,10 @@ function MateriaisApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // 🔵 ADICIONADO — controla se o app está em manutenção
+  const emManutencao = true; 
+  // coloque false para liberar o app
+
   if (!role) {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-gray-700 dark:text-gray-300">
@@ -51,7 +55,20 @@ function MateriaisApp() {
   };
 
   return (
-    <div className="min-h-screen py-10 px-4 flex flex-col items-center text-gray-900 dark:text-gray-100">
+    <div className="relative min-h-screen py-10 px-4 flex flex-col items-center text-gray-900 dark:text-gray-100">
+
+      {/* 🔵 OVERLAY DE MANUTENÇÃO — igual ao Pendente */}
+      {emManutencao && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center 
+          bg-black/70 backdrop-blur-md text-white text-center px-6">
+          <h1 className="text-4xl font-bold mb-4">Aplicativo em Manutenção</h1>
+          <p className="text-lg max-w-xl">
+            Estamos realizando atualizações importantes para melhorar sua experiência. 
+            Por favor, tente novamente mais tarde.
+          </p>
+        </div>
+      )}
+
       <h1 className="text-3xl font-extrabold mb-8 bg-gradient-to-r from-blue-600 to-cyan-400 dark:from-blue-300 dark:to-cyan-200 bg-clip-text text-transparent">
         Processar Arquivos de Materiais
       </h1>
