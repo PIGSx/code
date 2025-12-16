@@ -10,9 +10,10 @@ from base64 import b64encode
 from typing import List, Optional, Dict, Any
 
 import pandas as pd
-from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Query, Header, Body
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Header, Body, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+
 
 # Selenium imports (usados pelo rastreador)
 from selenium import webdriver
@@ -22,6 +23,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException, WebDriverException
+
+# ---------------- WebSocket Globals ----------------
+active_connections: Dict[str, List[WebSocket]] = {}
+
+
 
 # ---------------- Config ----------------
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
@@ -45,37 +51,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------- Auth (reaproveita sua lista) ----------------
+# ---------------- Auth / Roles ----------------
+
 allowed_credentials = {
-    "jaya": {"password": "697843", "role": "admin"},
-    "hiury": {"password": "thebest", "role": "admin"},
+    "jaya":  {"password": "697843", "role": "ti"},
+    "hiury": {"password": "thebest", "role": "ti"},
     "renan": {"password": "renan2025", "role": "admin"},
-    "ana": {"password": "deusa", "role": "admin"},
-    "NovaSP": {"password": "cmnsp2025", "role": "comum"}
+    "ana":   {"password": "deusa", "role": "admin"},
+    "NovaSP":{"password": "cmnsp2025", "role": "comum"}
 }
-active_tokens: Dict[str, Dict[str, Any]] = {}
-TOKEN_EXPIRATION = 3600  # segundos
+
+active_tokens = {}
+TOKEN_EXPIRATION = 3600  # 1h
+
+ROLE_LEVEL = {
+    "comum": 1,
+    "admin": 2,
+    "ti": 3
+}
 
 def make_token(username: str, role: str) -> str:
-    t = str(uuid.uuid4())
-    active_tokens[t] = {"user": username, "role": role, "expira_em": time.time() + TOKEN_EXPIRATION}
-    logger.info("Token criado para %s (role=%s)", username, role)
-    return t
+    token = str(uuid.uuid4())
+    active_tokens[token] = {
+        "user": username,
+        "role": role,
+        "expira_em": time.time() + TOKEN_EXPIRATION
+    }
+    return token
+
 
 def verify_token_header(auth_header: Optional[str]) -> Dict[str, Any]:
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token ausente")
+
     token = auth_header.split(" ", 1)[1]
     info = active_tokens.get(token)
+
     if not info:
-        raise HTTPException(status_code=403, detail="Token inválido ou expirado")
+        raise HTTPException(status_code=403, detail="Token inválido")
+
     if time.time() > info["expira_em"]:
         active_tokens.pop(token, None)
         raise HTTPException(status_code=403, detail="Token expirado")
+
     return info
 
-def get_current_user_header(authorization: Optional[str] = Header(None)):
-    return verify_token_header(authorization)
+
+def require_role(info: Dict[str, Any], minimum_role: str):
+    user_role = info.get("role")
+    if ROLE_LEVEL.get(user_role, 0) < ROLE_LEVEL.get(minimum_role, 0):
+        raise HTTPException(status_code=403, detail="Permissão insuficiente")
 
 # ---------------- Helpers de arquivos / excel ----------------
 def save_uploaded_file(file: UploadFile) -> Path:
@@ -128,13 +153,24 @@ def cleanup_temp_files(older_than_seconds: int = 60*60*24):
 def login(payload: Dict[str, str] = Body(...)):
     username = payload.get("username")
     password = payload.get("password")
+
     if not username or not password:
         raise HTTPException(status_code=400, detail="Usuário/senha ausentes")
+
     user = allowed_credentials.get(username)
-    if user and user["password"] == password:
-        token = make_token(username, user["role"])
-        return {"success": True, "token": token, "user": username, "role": user["role"]}
-    raise HTTPException(status_code=401, detail="Usuário ou senha inválidos")
+
+    if not user or user["password"] != password:
+        raise HTTPException(status_code=401, detail="Usuário ou senha inválidos")
+
+    token = make_token(username, user["role"])
+
+    return {
+        "success": True,
+        "token": token,
+        "user": username,
+        "role": user["role"]
+    }
+
 
 @app.post("/logout")
 def logout(payload: Dict[str, str] = Body(...)):
@@ -144,10 +180,16 @@ def logout(payload: Dict[str, str] = Body(...)):
         return {"success": True, "message": "Logout realizado"}
     raise HTTPException(status_code=404, detail="Token não encontrado")
 
+
 @app.get("/current_user")
 def current_user(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
-    return {"logged_in": True, "user": info["user"], "role": info["role"]}
+    return {
+        "logged_in": True,
+        "user": info["user"],
+        "role": info["role"]
+    }
+
 
 # ---------------- Routes - Materiais ----------------
 @app.get("/materiais")
@@ -473,6 +515,38 @@ def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
                 navegador.quit()
         except Exception:
             pass
+
+
+# ---------------- Helpers ----------------
+active_connections: Dict[str, List[WebSocket]] = {}  # WebSocket por chamado
+
+def make_response_file(df, filename="saida.xlsx"):
+    import tempfile, os
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    df.to_excel(tmp.name, index=False)
+    tmp.close()
+    def iterfile():
+        with open(tmp.name, "rb") as f: yield from f
+        try: os.remove(tmp.name)
+        except: pass
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return StreamingResponse(iterfile(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+
+# ---------------- WebSocket Route ----------------
+@app.websocket("/ws/{chamado_id}")
+async def websocket_endpoint(websocket: WebSocket, chamado_id: str):
+    await websocket.accept()
+    if chamado_id not in active_connections: active_connections[chamado_id] = []
+    active_connections[chamado_id].append(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            msg = data if isinstance(data,str) else str(data)
+            for conn in active_connections[chamado_id]:
+                await conn.send_text(msg)
+    except WebSocketDisconnect:
+        active_connections[chamado_id].remove(websocket)
+
 
 # ---------------- Admin / util ----------------
 @app.post("/admin/cleanup")
