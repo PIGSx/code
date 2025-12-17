@@ -1,5 +1,9 @@
 import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
+
 import Navbar from "../components/Navbar";
+import BotaoVoltar from "../components/BackBotton";
+import PageNotFound from "../components/PageNotFound";
+
 import Home from "../pages/Home";
 import Download from "../pages/DownloadPage";
 import Carteira from "../pages/Dashs/Carteira";
@@ -13,23 +17,27 @@ import Penha from "../pages/Dashs/Polos/Penha";
 import SM from "../pages/Dashs/Polos/SM";
 import MateriaisList from "../pages/Aplicativos/Materiais/MateriaisList";
 import MateriaisApp from "../pages/Aplicativos/Materiais/MateriaisApp";
-import PageNotFound from "../components/PageNotFound";
+
 import LoginPage from "../pages/Login";
 
+/* ===== SUPORTE ===== */
 import AbrirChamado from "../pages/Support/Abertura";
-import MeusChamados from "../pages/Support/Chamados";
+import MeusChamados from "../pages/Support/MeusChamados";
 import ListaChamados from "../pages/Support/Lista";
 import DetalheChamado from "../pages/Support/Detalhe";
 
-import BotaoVoltar from "../components/BackBotton";
 import { isAuthenticated } from "../utils/auth";
 import ProtectedRoute from "./ProtectedRoute";
 
-/* 🔒 Protege apenas autenticação */
+/* =============================
+   Rotas privadas (login)
+   ============================= */
 const PrivateRoute = ({ children }) =>
   isAuthenticated() ? children : <Navigate to="/login" replace />;
 
-/* 🔒 Layout protegido */
+/* =============================
+   Layout protegido
+   ============================= */
 const PrivateLayout = () => {
   const { pathname } = useLocation();
   const showBack = pathname !== "/" && pathname !== "/login";
@@ -49,13 +57,17 @@ const PrivateLayout = () => {
   );
 };
 
-export default function RoutsPage() {
+export default function RoutesPage() {
   return (
     <Routes>
-      {/* 🔓 Público */}
+      {/* =============================
+          Público
+         ============================= */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* 🔒 Tudo abaixo exige login */}
+      {/* =============================
+          Privado (logado)
+         ============================= */}
       <Route
         element={
           <PrivateRoute>
@@ -63,7 +75,7 @@ export default function RoutsPage() {
           </PrivateRoute>
         }
       >
-        {/* Geral */}
+        {/* ===== Geral ===== */}
         <Route path="/" element={<Home />} />
         <Route path="/download" element={<Download />} />
         <Route path="/carteira" element={<Carteira />} />
@@ -78,7 +90,9 @@ export default function RoutsPage() {
         <Route path="/materiaislist" element={<MateriaisList />} />
         <Route path="/materiaisapp" element={<MateriaisApp />} />
 
-        {/* 🧑 Usuário comum */}
+        {/* =============================
+            SUPORTE — USUÁRIO COMUM
+           ============================= */}
         <Route
           path="/chamados/novo"
           element={
@@ -97,7 +111,9 @@ export default function RoutsPage() {
           }
         />
 
-        {/* 🧑‍💼 Admin */}
+        {/* =============================
+            SUPORTE — TI / ADMIN
+           ============================= */}
         <Route
           path="/chamados"
           element={
@@ -107,18 +123,23 @@ export default function RoutsPage() {
           }
         />
 
-        {/* 🧑‍💻 TI (master) */}
+        {/* =============================
+            DETALHE DO CHAMADO (CHAT)
+            → comum, admin e TI
+           ============================= */}
         <Route
           path="/chamados/:id"
           element={
-            <ProtectedRoute minRole="ti">
+            <ProtectedRoute minRole="comum">
               <DetalheChamado />
             </ProtectedRoute>
           }
         />
       </Route>
 
-      {/* ❌ 404 */}
+      {/* =============================
+          404
+         ============================= */}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

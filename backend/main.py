@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from base64 import b64encode
 from typing import List, Optional, Dict, Any
+from pydantic import BaseModel
 
 import pandas as pd
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Header, Body, WebSocket, WebSocketDisconnect
@@ -24,10 +25,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
-# ---------------- WebSocket Globals ----------------
-active_connections: Dict[str, List[WebSocket]] = {}
-
-
+class MensagemBody(BaseModel):
+    texto: str
 
 # ---------------- Config ----------------
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
@@ -517,36 +516,148 @@ def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
             pass
 
 
-# ---------------- Helpers ----------------
-active_connections: Dict[str, List[WebSocket]] = {}  # WebSocket por chamado
+# =====================================================================
+# ===================== CHAMADOS (MEMÓRIA) =============================
+# =====================================================================
 
-def make_response_file(df, filename="saida.xlsx"):
-    import tempfile, os
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
-    df.to_excel(tmp.name, index=False)
-    tmp.close()
-    def iterfile():
-        with open(tmp.name, "rb") as f: yield from f
-        try: os.remove(tmp.name)
-        except: pass
-    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
-    return StreamingResponse(iterfile(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+chamados_store: Dict[str, dict] = {}
 
-# ---------------- WebSocket Route ----------------
-@app.websocket("/ws/{chamado_id}")
-async def websocket_endpoint(websocket: WebSocket, chamado_id: str):
-    await websocket.accept()
-    if chamado_id not in active_connections: active_connections[chamado_id] = []
-    active_connections[chamado_id].append(websocket)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            msg = data if isinstance(data,str) else str(data)
-            for conn in active_connections[chamado_id]:
-                await conn.send_text(msg)
-    except WebSocketDisconnect:
-        active_connections[chamado_id].remove(websocket)
+@app.post("/chamados")
+def abrir_chamado(
+    titulo: str = Body(...),
+    categoria: str = Body(...),
+    descricao: str = Body(...),
+    authorization: Optional[str] = Header(None),
+):
+    info = verify_token_header(authorization)
 
+    chamado_id = str(uuid.uuid4())
+
+    chamados_store[chamado_id] = {
+        "id": chamado_id,
+        "titulo": titulo,
+        "categoria": categoria,
+        "descricao": descricao,
+        "status": "Aberto",
+        "autor": info["user"],
+        "mensagens": [],
+        "criado_em": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    return chamados_store[chamado_id]
+
+
+@app.get("/meus-chamados")
+def meus_chamados(authorization: Optional[str] = Header(None)):
+    info = verify_token_header(authorization)
+
+    return [
+        c for c in chamados_store.values()
+        if c["autor"] == info["user"]
+    ]
+
+
+@app.get("/chamados")
+def listar_chamados(authorization: Optional[str] = Header(None)):
+    info = verify_token_header(authorization)
+    require_role(info, "admin")
+
+    return list(chamados_store.values())
+
+
+@app.get("/chamados/{chamado_id}")
+def detalhe_chamado(chamado_id: str, authorization: Optional[str] = Header(None)):
+    info = verify_token_header(authorization)
+
+    chamado = chamados_store.get(chamado_id)
+    if not chamado:
+        raise HTTPException(404, "Chamado não encontrado")
+
+    # Autor pode ver o próprio chamado
+    # Admin/TI podem ver todos
+    if chamado["autor"] != info["user"]:
+        require_role(info, "admin")
+
+    return chamado
+
+
+# ---------------- Chat ----------------
+
+@app.post("/chamados/{chamado_id}/mensagens")
+def responder_chamado(
+    chamado_id: str,
+    body: MensagemBody,  # 👈 CORREÇÃO DO 422
+    authorization: Optional[str] = Header(None),
+):
+    info = verify_token_header(authorization)
+
+    chamado = chamados_store.get(chamado_id)
+    if not chamado:
+        raise HTTPException(404, "Chamado não encontrado")
+
+    # Autor do chamado ou Admin/TI podem responder
+    if chamado["autor"] != info["user"]:
+        require_role(info, "admin")
+
+    mensagem = {
+        "autor": info["user"],
+        "role": info["role"],
+        "texto": body.texto,
+        "data": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    chamado["mensagens"].append(mensagem)
+
+    # Atualiza status automaticamente
+    if info["role"] in ["admin", "ti"]:
+        chamado["status"] = "Em andamento"
+    else:
+        chamado["status"] = "Respondido"
+
+    return mensagem
+
+
+# ---------------- Status ----------------
+
+@app.patch("/chamados/{chamado_id}/status")
+def alterar_status(
+    chamado_id: str,
+    status: str = Body(...),
+    authorization: Optional[str] = Header(None),
+):
+    info = verify_token_header(authorization)
+    require_role(info, "admin")
+
+    chamado = chamados_store.get(chamado_id)
+    if not chamado:
+        raise HTTPException(404, "Chamado não encontrado")
+
+    if status not in ["Aberto", "Em andamento", "Fechado"]:
+        raise HTTPException(400, "Status inválido")
+
+    chamado["status"] = status
+    return chamado
+
+
+# ---------------- Exclusão ----------------
+
+@app.delete("/chamados/{chamado_id}")
+def excluir_chamado(chamado_id: str, authorization: Optional[str] = Header(None)):
+    info = verify_token_header(authorization)
+
+    chamado = chamados_store.get(chamado_id)
+    if not chamado:
+        raise HTTPException(404, "Chamado não encontrado")
+
+    # Autor pode excluir só se estiver Aberto
+    if chamado["autor"] == info["user"]:
+        if chamado["status"] != "Aberto":
+            raise HTTPException(403, "Chamado não pode ser excluído")
+    else:
+        require_role(info, "admin")
+
+    del chamados_store[chamado_id]
+    return {"success": True}
 
 # ---------------- Admin / util ----------------
 @app.post("/admin/cleanup")

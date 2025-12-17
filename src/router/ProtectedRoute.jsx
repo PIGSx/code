@@ -8,9 +8,9 @@ const ROLE_LEVEL = {
 
 export default function ProtectedRoute({ children, minRole }) {
   const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role") || "comum";
+  const role = localStorage.getItem("role");
 
-  if (!token) {
+  if (!token || !ROLE_LEVEL[role]) {
     return <Navigate to="/login" replace />;
   }
 
