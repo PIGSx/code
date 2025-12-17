@@ -7,6 +7,7 @@ import ThemeToggle from "../ThemeToggle";
 const Navbar = () => {
   const [user, setUser] = useState(localStorage.getItem("username") || null);
   const [token, setToken] = useState(localStorage.getItem("token") || "");
+  const [role, setRole] = useState(localStorage.getItem("role") || "comum");
   const [validating, setValidating] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -16,13 +17,13 @@ const Navbar = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-
   const stopRef = useRef(false);
 
-  // 🔥 Flag global para token expirado
   if (window.tokenExpirado === undefined) window.tokenExpirado = false;
 
-  // 📌 Interceptador de expiração de token
+  // =========================
+  // Interceptor token expirado
+  // =========================
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (res) => res,
@@ -33,27 +34,35 @@ const Navbar = () => {
         return Promise.reject(error);
       }
     );
-
     return () => api.interceptors.response.eject(interceptor);
   }, []);
 
-  // 📌 Validação inicial do token
+  // =========================
+  // Validação inicial
+  // =========================
   useEffect(() => {
     const validarUsuario = async () => {
       if (!token) {
         setValidating(false);
         return;
       }
+
       try {
         const res = await api.get("/current_user");
+
         if (res.data?.logged_in) {
           setUser(res.data.user);
+          setRole(res.data.role || "comum");
+          localStorage.setItem("role", res.data.role || "comum");
         } else {
-          setUser(null);
           localStorage.clear();
+          setUser(null);
+          setRole("comum");
         }
       } catch {
+        localStorage.clear();
         setUser(null);
+        setRole("comum");
       } finally {
         setValidating(false);
       }
@@ -62,11 +71,15 @@ const Navbar = () => {
     validarUsuario();
   }, [token]);
 
-  // 📌 Login
+  // =========================
+  // Login
+  // =========================
   const handleLogin = async (e) => {
     e.preventDefault();
+
     try {
       const res = await api.post("/login", loginForm);
+
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("username", res.data.user);
@@ -76,6 +89,7 @@ const Navbar = () => {
 
         setToken(res.data.token);
         setUser(res.data.user);
+        setRole(res.data.role);
         setShowLoginModal(false);
       } else {
         alert("Usuário ou senha inválidos!");
@@ -85,7 +99,9 @@ const Navbar = () => {
     }
   };
 
-  // 📌 Logout
+  // =========================
+  // Logout
+  // =========================
   const handleLogout = async () => {
     try {
       await api.post("/logout", { token });
@@ -93,19 +109,31 @@ const Navbar = () => {
     localStorage.clear();
     setToken("");
     setUser(null);
+    setRole("comum");
     navigate("/login");
   };
 
+  // =========================
+  // Helpers de role
+  // =========================
+  const ROLE_LEVEL = {
+    comum: 1,
+    admin: 2,
+    ti: 3,
+  };
+
+  const hasRole = (minRole) =>
+    ROLE_LEVEL[role] >= ROLE_LEVEL[minRole];
+
+  // =========================
   // Delay
+  // =========================
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // 📌 Autoinicialização
-  const startAutoinicializacao = async (
-    abasSelecionadas,
-    subCardsSelecionados,
-    tempo,
-    loop
-  ) => {
+  // =========================
+  // Autoinicialização
+  // =========================
+  const startAutoinicializacao = async (abas, subCards, tempo, loop) => {
     setAutoinicializacaoAtiva(true);
     stopRef.current = false;
 
@@ -126,26 +154,15 @@ const Navbar = () => {
           navigate("/carteira");
           break;
         case "Polos":
-          const polosSelecionados = subCardsSelecionados["Polos"] || [];
-          for (const polo of polosSelecionados) {
+          const polos = subCards["Polos"] || [];
+          for (const polo of polos) {
             if (stopRef.current) return;
-            switch (polo) {
-              case "955":
-                navigate("/itaim");
-                break;
-              case "921":
-                navigate("/penha");
-                break;
-              case "920":
-                navigate("/sm");
-                break;
-              default:
-                break;
-            }
+            if (polo === "955") navigate("/itaim");
+            if (polo === "921") navigate("/penha");
+            if (polo === "920") navigate("/sm");
             await delay(tempo * 1000);
           }
           return;
-
         default:
           break;
       }
@@ -154,7 +171,7 @@ const Navbar = () => {
     };
 
     do {
-      for (const aba of abasSelecionadas) {
+      for (const aba of abas) {
         if (stopRef.current) break;
         await navegarAba(aba);
       }
@@ -162,217 +179,119 @@ const Navbar = () => {
 
     setAutoinicializacaoAtiva(false);
 
-    // ⛔ Se token estiver expirado quando acabar → vai para login
     if (window.tokenExpirado) {
       localStorage.clear();
       navigate("/login");
     }
   };
 
-  // 📌 Botão de parar
   const stopAutoinicializacao = () => {
     stopRef.current = true;
     setAutoinicializacaoAtiva(false);
-
-    // 🎯 Se token expirou → agora sim redireciona
     if (window.tokenExpirado) {
       localStorage.clear();
       navigate("/login");
     }
   };
 
+  // =========================
+  // Menu
+  // =========================
   const navItems = [
     { label: "Downloads", path: "/download" },
-    { label: "Sobre", path: "/sobre" },
+    hasRole("admin")
+      ? { label: "Chamados", path: "/chamados" }
+      : { label: "Suporte", path: "/chamados/novo" },
   ];
 
   if (location.pathname === "/login") return null;
 
   return (
-    <header className="bg-gray-900 shadow-lg relative z-50">
-      <nav className="container mx-auto flex justify-between items-center p-4">
-        <Link to="/" className="text-2xl font-bold text-purple-400">
+    <header className="sticky top-0 z-50 bg-gradient-to-r from-white to-gray-100 dark:from-[#0b0f1a] dark:to-[#0d1117] border-b border-black/5 dark:border-white/5 transition-colors duration-300">
+      <nav className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <Link to="/" className="text-2xl font-extrabold bg-gradient-to-r from-purple-500 to-cyan-400 bg-clip-text text-transparent">
           TECHNOBLADE
         </Link>
 
-        {/* Desktop */}
-        <ul className="hidden md:flex space-x-6 items-center">
+        <ul className="hidden md:flex items-center gap-6">
           <li>
-            <span
-              className="text-purple-300 font-semibold cursor-pointer hover:text-purple-400 transition"
-              onClick={() => setShowModal(true)}
-            >
+            <button onClick={() => setShowModal(true)} className="text-sm font-medium text-purple-600 dark:text-purple-400">
               Autoinicialização
-            </span>
+            </button>
           </li>
 
-          {navItems.map((item, idx) => (
-            <li key={idx}>
-              <Link
-                to={item.path}
-                className="text-gray-300 hover:text-purple-300 transition"
-              >
+          {navItems.map((item) => (
+            <li key={item.path}>
+              <Link to={item.path} className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {item.label}
               </Link>
             </li>
           ))}
         </ul>
 
-        {/* Área do usuário */}
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="hidden md:flex items-center gap-4">
+          <ThemeToggle />
+
           {validating ? (
-            <span className="text-gray-500 animate-pulse">
-              Verificando login...
-            </span>
+            <span className="text-sm text-gray-400">Verificando login...</span>
           ) : user ? (
             <>
-              <span className="text-gray-200 font-semibold">Oi, {user}</span>
-              <button
-                onClick={handleLogout}
-                className="py-1 px-4 bg-red-600 hover:bg-red-700 text-white rounded transition"
-              >
+              <span className="text-sm font-semibold">
+                Oi, {user}
+                <span className="ml-1 text-xs opacity-60">({role})</span>
+              </span>
+              <button onClick={handleLogout} className="px-4 py-1.5 rounded-lg bg-red-500 text-white">
                 Sair
               </button>
             </>
           ) : (
-            <button
-              onClick={() => setShowLoginModal(true)}
-              className="py-1 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded transition"
-            >
+            <button onClick={() => setShowLoginModal(true)} className="px-4 py-1.5 rounded-lg bg-purple-600 text-white">
               Login
             </button>
           )}
         </div>
 
-        {/* Botão mobile */}
-        <button
-          className="md:hidden ml-4 text-2xl font-bold text-purple-400"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
+        <button className="md:hidden text-2xl" onClick={() => setMenuOpen(!menuOpen)}>
           ☰
         </button>
       </nav>
 
-      {/* Menu Mobile */}
       {menuOpen && (
-        <div className="md:hidden bg-gray-800 border-t border-gray-700">
-          <ul className="flex flex-col space-y-2 p-4">
+        <div className="md:hidden bg-white dark:bg-gray-900 border-t">
+          <ul className="flex flex-col gap-3 p-4">
             <li>
-              <span
-                className="text-purple-300 font-semibold cursor-pointer hover:text-purple-400 transition"
-                onClick={() => {
-                  setShowModal(true);
-                  setMenuOpen(false);
-                }}
-              >
+              <button onClick={() => { setShowModal(true); setMenuOpen(false); }} className="font-medium">
                 Autoinicialização
-              </span>
+              </button>
             </li>
 
-            {navItems.map((item, idx) => (
-              <li key={idx}>
-                <Link
-                  to={item.path}
-                  onClick={() => setMenuOpen(false)}
-                  className="text-gray-300 hover:text-purple-300 transition"
-                >
+            {navItems.map((item) => (
+              <li key={item.path}>
+                <Link to={item.path} onClick={() => setMenuOpen(false)}>
                   {item.label}
                 </Link>
               </li>
             ))}
 
             {user ? (
-              <li>
-                <button
-                  onClick={handleLogout}
-                  className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
-                >
-                  Logout
-                </button>
-              </li>
+              <button onClick={handleLogout} className="mt-2 py-2 bg-red-500 text-white rounded">
+                Logout
+              </button>
             ) : (
-              <li>
-                <button
-                  onClick={() => {
-                    setShowLoginModal(true);
-                    setMenuOpen(false);
-                  }}
-                  className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition"
-                >
-                  Login
-                </button>
-              </li>
+              <button onClick={() => { setShowLoginModal(true); setMenuOpen(false); }} className="mt-2 py-2 bg-purple-600 text-white rounded">
+                Login
+              </button>
             )}
           </ul>
         </div>
       )}
 
-      {/* Botão Parar */}
       {autoinicializacaoAtiva && (
-        <button
-          onClick={stopAutoinicializacao}
-          className="fixed bottom-6 right-6 z-50 bg-red-500 hover:bg-red-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg transition"
-          title="Parar Autoinicialização"
-        >
+        <button onClick={stopAutoinicializacao} className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-red-500 text-white">
           ⏹
         </button>
       )}
 
-      {/* Aviso de sessão expirada */}
-      {window.tokenExpirado && autoinicializacaoAtiva && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-yellow-600 text-white py-2 px-4 rounded shadow-lg z-50">
-          ⚠ Sua sessão expirou — ao pausar você será redirecionado.
-        </div>
-      )}
-
-      {/* Modal Login */}
-      {showLoginModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-gray-800 p-6 rounded shadow-lg w-80 text-gray-100">
-            <h2 className="text-xl font-bold mb-4 text-purple-400">Login</h2>
-
-            <form onSubmit={handleLogin} className="flex flex-col space-y-3">
-              <input
-                type="text"
-                placeholder="Usuário"
-                className="border border-gray-600 bg-gray-700 p-2 rounded text-gray-200 placeholder-gray-400 focus:ring focus:ring-purple-500 outline-none"
-                value={loginForm.username}
-                onChange={(e) =>
-                  setLoginForm({ ...loginForm, username: e.target.value })
-                }
-                required
-              />
-              <input
-                type="password"
-                placeholder="Senha"
-                className="border border-gray-600 bg-gray-700 p-2 rounded text-gray-200 placeholder-gray-400 focus:ring focus:ring-purple-500 outline-none"
-                value={loginForm.password}
-                onChange={(e) =>
-                  setLoginForm({ ...loginForm, password: e.target.value })
-                }
-                required
-              />
-
-              <button
-                type="submit"
-                className="py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition"
-              >
-                Entrar
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowLoginModal(false)}
-                className="py-2 bg-gray-600 hover:bg-gray-700 rounded text-gray-200 transition"
-              >
-                Cancelar
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Autoinicialização */}
       <ModalAutoinicializacao
         open={showModal}
         onClose={() => setShowModal(false)}
@@ -383,12 +302,6 @@ const Navbar = () => {
       />
     </header>
   );
-  
-  
 };
-
-<div className="flex items-center gap-4">
-   <ThemeToggle />
-</div>
 
 export default Navbar;

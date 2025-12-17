@@ -1,4 +1,3 @@
-// src/router/index.jsx
 import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Home from "../pages/Home";
@@ -17,21 +16,23 @@ import MateriaisApp from "../pages/Aplicativos/Materiais/MateriaisApp";
 import PageNotFound from "../components/PageNotFound";
 import LoginPage from "../pages/Login";
 
+import AbrirChamado from "../pages/Support/Abertura";
+import MeusChamados from "../pages/Support/Chamados";
+import ListaChamados from "../pages/Support/Lista";
+import DetalheChamado from "../pages/Support/Detalhe";
+
 import BotaoVoltar from "../components/BackBotton";
 import { isAuthenticated } from "../utils/auth";
+import ProtectedRoute from "./ProtectedRoute";
 
-
-// 🔒 Componente de Rota Protegida
+/* 🔒 Protege apenas autenticação */
 const PrivateRoute = ({ children }) =>
   isAuthenticated() ? children : <Navigate to="/login" replace />;
 
-
-// 🔒 Layout só aparece se estiver logado
+/* 🔒 Layout protegido */
 const PrivateLayout = () => {
   const { pathname } = useLocation();
-  const showBack =
-    pathname !== "/" &&
-    pathname !== "/login";
+  const showBack = pathname !== "/" && pathname !== "/login";
 
   return (
     <>
@@ -48,14 +49,13 @@ const PrivateLayout = () => {
   );
 };
 
-
 export default function RoutsPage() {
   return (
     <Routes>
-      {/* 🔓 Login é público */}
+      {/* 🔓 Público */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* 🔒 Tudo aqui dentro é protegido */}
+      {/* 🔒 Tudo abaixo exige login */}
       <Route
         element={
           <PrivateRoute>
@@ -63,10 +63,11 @@ export default function RoutsPage() {
           </PrivateRoute>
         }
       >
+        {/* Geral */}
         <Route path="/" element={<Home />} />
+        <Route path="/download" element={<Download />} />
         <Route path="/carteira" element={<Carteira />} />
         <Route path="/rastreador" element={<Rastreador />} />
-        <Route path="/download" element={<Download />} />
         <Route path="/ptrac" element={<Petrac />} />
         <Route path="/pendente" element={<Pendente />} />
         <Route path="/materiais" element={<Materiais />} />
@@ -76,9 +77,48 @@ export default function RoutsPage() {
         <Route path="/sm" element={<SM />} />
         <Route path="/materiaislist" element={<MateriaisList />} />
         <Route path="/materiaisapp" element={<MateriaisApp />} />
+
+        {/* 🧑 Usuário comum */}
+        <Route
+          path="/chamados/novo"
+          element={
+            <ProtectedRoute minRole="comum">
+              <AbrirChamado />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/meus-chamados"
+          element={
+            <ProtectedRoute minRole="comum">
+              <MeusChamados />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 🧑‍💼 Admin */}
+        <Route
+          path="/chamados"
+          element={
+            <ProtectedRoute minRole="admin">
+              <ListaChamados />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 🧑‍💻 TI (master) */}
+        <Route
+          path="/chamados/:id"
+          element={
+            <ProtectedRoute minRole="ti">
+              <DetalheChamado />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
-      {/* Página 404 */}
+      {/* ❌ 404 */}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
