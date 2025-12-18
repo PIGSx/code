@@ -201,7 +201,7 @@ const Navbar = () => {
     { label: "Downloads", path: "/download" },
     hasRole("admin")
       ? { label: "Chamados", path: "/chamados" }
-      : { label: "Suporte", path: "/chamados/novo" },
+      : { label: "Suporte", path: "/suporte" },
   ];
 
   if (location.pathname === "/login") return null;
