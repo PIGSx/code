@@ -520,6 +520,10 @@ def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
 # ===================== CHAMADOS (MEMÓRIA) =============================
 # =====================================================================
 
+# =====================================================================
+# ===================== CHAMADOS (MEMÓRIA) =============================
+# =====================================================================
+
 chamados_store: Dict[str, dict] = {}
 
 @app.post("/chamados")
@@ -542,6 +546,8 @@ def abrir_chamado(
         "autor": info["user"],
         "mensagens": [],
         "criado_em": time.strftime("%Y-%m-%d %H:%M:%S"),
+        # 🔔 controle de leitura
+        "nao_lido_por": ["ti"],  # TI ainda não viu
     }
 
     return chamados_store[chamado_id]
@@ -573,8 +579,6 @@ def detalhe_chamado(chamado_id: str, authorization: Optional[str] = Header(None)
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
-    # Autor pode ver o próprio chamado
-    # Admin/TI podem ver todos
     if chamado["autor"] != info["user"]:
         require_role(info, "admin")
 
@@ -586,7 +590,7 @@ def detalhe_chamado(chamado_id: str, authorization: Optional[str] = Header(None)
 @app.post("/chamados/{chamado_id}/mensagens")
 def responder_chamado(
     chamado_id: str,
-    body: MensagemBody,  # 👈 CORREÇÃO DO 422
+    body: MensagemBody,
     authorization: Optional[str] = Header(None),
 ):
     info = verify_token_header(authorization)
@@ -595,7 +599,6 @@ def responder_chamado(
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
-    # Autor do chamado ou Admin/TI podem responder
     if chamado["autor"] != info["user"]:
         require_role(info, "admin")
 
@@ -608,56 +611,65 @@ def responder_chamado(
 
     chamado["mensagens"].append(mensagem)
 
-    # Atualiza status automaticamente
+    # 🔔 NOTIFICAÇÕES
     if info["role"] in ["admin", "ti"]:
         chamado["status"] = "Em andamento"
+
+        if chamado["autor"] not in chamado["nao_lido_por"]:
+            chamado["nao_lido_por"].append(chamado["autor"])
     else:
         chamado["status"] = "Respondido"
+
+        if "ti" not in chamado["nao_lido_por"]:
+            chamado["nao_lido_por"].append("ti")
 
     return mensagem
 
 
-# ---------------- Status ----------------
+# ---------------- Marcar como lido ----------------
 
-@app.patch("/chamados/{chamado_id}/status")
-def alterar_status(
-    chamado_id: str,
-    status: str = Body(...),
-    authorization: Optional[str] = Header(None),
-):
-    info = verify_token_header(authorization)
-    require_role(info, "admin")
-
-    chamado = chamados_store.get(chamado_id)
-    if not chamado:
-        raise HTTPException(404, "Chamado não encontrado")
-
-    if status not in ["Aberto", "Em andamento", "Fechado"]:
-        raise HTTPException(400, "Status inválido")
-
-    chamado["status"] = status
-    return chamado
-
-
-# ---------------- Exclusão ----------------
-
-@app.delete("/chamados/{chamado_id}")
-def excluir_chamado(chamado_id: str, authorization: Optional[str] = Header(None)):
+@app.post("/notifications/read/{chamado_id}")
+def marcar_como_lido(chamado_id: str, authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
 
     chamado = chamados_store.get(chamado_id)
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
-    # Autor pode excluir só se estiver Aberto
-    if chamado["autor"] == info["user"]:
-        if chamado["status"] != "Aberto":
-            raise HTTPException(403, "Chamado não pode ser excluído")
+    user = info["user"]
+    role = info["role"]
+
+    if role in ["admin", "ti"]:
+        if "ti" in chamado["nao_lido_por"]:
+            chamado["nao_lido_por"].remove("ti")
     else:
-        require_role(info, "admin")
+        if user in chamado["nao_lido_por"]:
+            chamado["nao_lido_por"].remove(user)
 
-    del chamados_store[chamado_id]
     return {"success": True}
+
+
+# ---------------- Contador global ----------------
+
+@app.get("/notifications/count")
+def notifications_count(authorization: Optional[str] = Header(None)):
+    info = verify_token_header(authorization)
+
+    user = info["user"]
+    role = info["role"]
+
+    count = 0
+
+    for c in chamados_store.values():
+        if role in ["admin", "ti"]:
+            if "ti" in c.get("nao_lido_por", []):
+                count += 1
+        else:
+            if user in c.get("nao_lido_por", []):
+                count += 1
+
+    return {"count": count}
+
 
 # ---------------- Admin / util ----------------
 @app.post("/admin/cleanup")

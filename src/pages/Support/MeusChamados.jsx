@@ -16,13 +16,10 @@ export default function MeusChamados() {
     const fetchChamados = async () => {
       try {
         const res = await api.get("/meus-chamados");
-        setChamados(res.data || []);
+        setChamados(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        setError(
-          err.response?.data?.detail ||
-            err.response?.data?.message ||
-            "Erro ao carregar chamados."
-        );
+        console.error(err);
+        setError("Erro ao carregar seus chamados.");
       } finally {
         setLoading(false);
       }
@@ -51,13 +48,10 @@ export default function MeusChamados() {
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h1 className="text-3xl font-extrabold">📋 Meus Chamados</h1>
+
           <button
             onClick={() => navigate("/chamados/novo")}
-            className="
-              px-5 py-2 rounded-lg
-              bg-purple-600 hover:bg-purple-700
-              text-white font-medium transition
-            "
+            className="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition"
           >
             + Abrir Chamado
           </button>
@@ -102,56 +96,58 @@ export default function MeusChamados() {
           </div>
         )}
 
-        {/* Lista de chamados */}
+        {/* Lista */}
         {!loading && !error && chamados.length > 0 && (
           <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-            {chamados.map((chamado) => (
-              <div
-                key={chamado.id}
-                onClick={() => navigate(`/chamados/${chamado.id}`)}
-                className={`
-                  rounded-2xl p-5 border transition-all cursor-pointer
-                  hover:scale-[1.01]
-                  ${
+            {chamados.map((chamado) => {
+              const ultimaMsg =
+                chamado.mensagens?.[chamado.mensagens.length - 1];
+
+              return (
+                <div
+                  key={chamado.id}
+                  onClick={() => navigate(`/chamados/${chamado.id}`)}
+                  className={`rounded-2xl p-5 border transition-all cursor-pointer hover:scale-[1.01] ${
                     isDark
                       ? "bg-gradient-to-b from-gray-900 to-black border-gray-700 hover:border-purple-500"
                       : "bg-white border-gray-200 hover:border-purple-400 shadow-sm"
-                  }
-                `}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{chamado.titulo}</h3>
-                    <p
-                      className={`text-sm ${
-                        isDark ? "text-gray-400" : "text-gray-600"
-                      }`}
-                    >
-                      {chamado.categoria} •{" "}
-                      {new Date(chamado.data).toLocaleString()}
-                    </p>
-                    {chamado.ultimaMensagem && (
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        Chamado #{chamado.id}
+                      </h3>
+
                       <p
-                        className={`text-sm mt-1 truncate ${
-                          isDark ? "text-gray-500" : "text-gray-500"
+                        className={`text-sm ${
+                          isDark ? "text-gray-400" : "text-gray-600"
                         }`}
                       >
-                        {chamado.ultimaMensagem}
+                        Criado em{" "}
+                        {chamado.criado_em
+                          ? new Date(chamado.criado_em).toLocaleString()
+                          : "—"}
                       </p>
-                    )}
-                  </div>
 
-                  <span
-                    className={`
-                      px-3 py-1 text-sm font-semibold rounded-full w-fit
-                      ${statusStyle(chamado.status)}
-                    `}
-                  >
-                    {chamado.status}
-                  </span>
+                      {ultimaMsg && (
+                        <p className="text-sm mt-1 truncate text-gray-500">
+                          {ultimaMsg.texto}
+                        </p>
+                      )}
+                    </div>
+
+                    <span
+                      className={`px-3 py-1 text-sm font-semibold rounded-full w-fit ${statusStyle(
+                        chamado.status
+                      )}`}
+                    >
+                      {chamado.status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

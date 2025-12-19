@@ -39,7 +39,7 @@ export default function AbrirChamado() {
         descricao: form.descricao.trim(),
       });
 
-      navigate("/chamados");
+      navigate("/meus-chamados");
     } catch (err) {
       setError(
         err.response?.data?.detail ||
