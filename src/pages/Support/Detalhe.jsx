@@ -18,6 +18,9 @@ export default function DetalheChamado() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
 
+  /* =============================
+     Buscar chamado
+     ============================= */
   const fetchChamado = async () => {
     try {
       const res = await api.get(`/chamados/${id}`);
@@ -29,20 +32,27 @@ export default function DetalheChamado() {
     }
   };
 
+  /* =============================
+     Marcar como lido (REMOVE NOTIFICAÇÃO)
+     ============================= */
   const marcarComoLido = async () => {
     try {
-      await api.post(`/notifications/read/${id}`);
-      fetchCount();
+      await api.post(`/chamados/${id}/read`);
+      fetchCount(); // 🔔 atualiza badge do menu
     } catch {
-      console.warn("Falha ao marcar como lido");
+      console.warn("Falha ao marcar chamado como lido");
     }
   };
 
   useEffect(() => {
     fetchChamado();
     marcarComoLido();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  /* =============================
+     Enviar mensagem
+     ============================= */
   const enviarMensagem = async () => {
     if (!mensagem.trim()) return;
 
@@ -55,7 +65,7 @@ export default function DetalheChamado() {
 
       setMensagem("");
       await fetchChamado();
-      fetchCount();
+      fetchCount(); // 🔔 gera notificação para o outro lado
     } catch {
       alert("Erro ao enviar mensagem.");
     } finally {
@@ -63,48 +73,135 @@ export default function DetalheChamado() {
     }
   };
 
+  /* =============================
+     Estados globais
+     ============================= */
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Carregando chamado...
+      </div>
+    );
   }
 
   if (error || !chamado) {
-    return <div className="min-h-screen flex items-center justify-center text-red-500">{error}</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-500">
+        {error || "Chamado não encontrado"}
+      </div>
+    );
   }
 
   return (
-    <div className={`min-h-screen px-4 py-8 ${isDark ? "bg-[#0d1117] text-gray-100" : "bg-gray-100 text-gray-900"}`}>
+    <div
+      className={`min-h-screen px-4 py-8 ${
+        isDark
+          ? "bg-[#0d1117] text-gray-100"
+          : "bg-gray-100 text-gray-900"
+      }`}
+    >
       <div className="max-w-4xl mx-auto space-y-6">
 
-        <button onClick={() => navigate(-1)} className="text-sm text-purple-500 hover:underline">
-          ← Voltar
-        </button>
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="text-sm text-purple-500 hover:underline"
+          >
+            ← Voltar
+          </button>
 
-        <div className="p-6 rounded-xl bg-white dark:bg-gray-900">
-          <h2 className="text-2xl font-bold">{chamado.titulo}</h2>
-          <p className="text-sm text-gray-500">{chamado.categoria} • {chamado.criado_em}</p>
+          <span className="text-sm font-semibold px-3 py-1 rounded-full bg-purple-600 text-white">
+            {chamado.status}
+          </span>
+        </div>
+
+        {/* Dados do chamado */}
+        <div
+          className={`p-6 rounded-xl border ${
+            isDark
+              ? "bg-gray-900 border-gray-700"
+              : "bg-white border-gray-200"
+          }`}
+        >
+          <h2 className="text-2xl font-bold mb-2">
+            {chamado.titulo}
+          </h2>
+
+          <p className="text-sm text-gray-500">
+            {chamado.categoria} • Criado em {chamado.criado_em}
+          </p>
+
           <p className="mt-4">{chamado.descricao}</p>
         </div>
 
-        <div className="p-6 rounded-xl bg-white dark:bg-gray-900 space-y-3">
-          {chamado.mensagens.map((m, i) => (
-            <div key={i} className={`p-3 rounded ${m.role !== "comum" ? "bg-purple-100" : "bg-gray-100"}`}>
-              <strong>{m.autor}</strong> • {m.data}
-              <p>{m.texto}</p>
-            </div>
-          ))}
+        {/* Conversa */}
+        <div
+          className={`p-6 rounded-xl border space-y-4 ${
+            isDark
+              ? "bg-gray-900 border-gray-700"
+              : "bg-white border-gray-200"
+          }`}
+        >
+          <h3 className="text-lg font-bold">💬 Conversa</h3>
+
+          {chamado.mensagens.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Nenhuma mensagem ainda.
+            </p>
+          ) : (
+            chamado.mensagens.map((m, i) => (
+              <div
+                key={i}
+                className={`p-3 rounded-lg text-sm ${
+                  m.role === "admin" || m.role === "ti"
+                    ? isDark
+                      ? "bg-purple-900/40 text-purple-200"
+                      : "bg-purple-100 text-purple-800"
+                    : isDark
+                      ? "bg-gray-800 text-gray-200"
+                      : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                <div className="font-semibold">
+                  {m.autor}
+                  <span className="text-xs opacity-60">
+                    {" "}• {m.data}
+                  </span>
+                </div>
+                <p className="mt-1">{m.texto}</p>
+              </div>
+            ))
+          )}
         </div>
 
+        {/* Nova mensagem */}
         {chamado.status !== "Fechado" && (
-          <div className="p-6 rounded-xl bg-white dark:bg-gray-900">
+          <div
+            className={`p-6 rounded-xl border ${
+              isDark
+                ? "bg-gray-900 border-gray-700"
+                : "bg-white border-gray-200"
+            }`}
+          >
+            <h3 className="font-bold mb-2">✍️ Nova mensagem</h3>
+
             <textarea
               value={mensagem}
               onChange={(e) => setMensagem(e.target.value)}
-              className="w-full p-3 rounded"
+              rows={4}
+              placeholder="Digite sua mensagem..."
+              className={`w-full p-3 rounded-lg border outline-none ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 text-gray-100"
+                  : "bg-gray-100 border-gray-300 text-gray-900"
+              }`}
             />
+
             <button
               onClick={enviarMensagem}
               disabled={enviando}
-              className="mt-2 bg-purple-600 text-white px-4 py-2 rounded"
+              className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
             >
               {enviando ? "Enviando..." : "Enviar"}
             </button>

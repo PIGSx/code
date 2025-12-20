@@ -516,15 +516,15 @@ def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
             pass
 
 
-# =====================================================================
-# ===================== CHAMADOS (MEMÓRIA) =============================
-# =====================================================================
 
 # =====================================================================
 # ===================== CHAMADOS (MEMÓRIA) =============================
 # =====================================================================
 
 chamados_store: Dict[str, dict] = {}
+
+
+# ---------------- Abrir chamado ----------------
 
 @app.post("/chamados")
 def abrir_chamado(
@@ -553,6 +553,8 @@ def abrir_chamado(
     return chamados_store[chamado_id]
 
 
+# ---------------- Meus chamados ----------------
+
 @app.get("/meus-chamados")
 def meus_chamados(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
@@ -563,6 +565,8 @@ def meus_chamados(authorization: Optional[str] = Header(None)):
     ]
 
 
+# ---------------- Listar todos (admin / ti) ----------------
+
 @app.get("/chamados")
 def listar_chamados(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
@@ -570,6 +574,8 @@ def listar_chamados(authorization: Optional[str] = Header(None)):
 
     return list(chamados_store.values())
 
+
+# ---------------- Detalhe do chamado ----------------
 
 @app.get("/chamados/{chamado_id}")
 def detalhe_chamado(chamado_id: str, authorization: Optional[str] = Header(None)):
@@ -585,7 +591,9 @@ def detalhe_chamado(chamado_id: str, authorization: Optional[str] = Header(None)
     return chamado
 
 
-# ---------------- Chat ----------------
+# =====================================================================
+# ============================ CHAT ===================================
+# =====================================================================
 
 @app.post("/chamados/{chamado_id}/mensagens")
 def responder_chamado(
@@ -599,6 +607,7 @@ def responder_chamado(
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
+    # usuário só responde o próprio chamado
     if chamado["autor"] != info["user"]:
         require_role(info, "admin")
 
@@ -611,25 +620,32 @@ def responder_chamado(
 
     chamado["mensagens"].append(mensagem)
 
-    # 🔔 NOTIFICAÇÕES
+    # 🔔 CONTROLE DE NOTIFICAÇÃO
     if info["role"] in ["admin", "ti"]:
         chamado["status"] = "Em andamento"
 
+        # autor ainda não leu
         if chamado["autor"] not in chamado["nao_lido_por"]:
             chamado["nao_lido_por"].append(chamado["autor"])
     else:
         chamado["status"] = "Respondido"
 
+        # TI ainda não leu
         if "ti" not in chamado["nao_lido_por"]:
             chamado["nao_lido_por"].append("ti")
 
     return mensagem
 
 
-# ---------------- Marcar como lido ----------------
+# =====================================================================
+# ====================== MARCAR COMO LIDO ==============================
+# =====================================================================
 
-@app.post("/notifications/read/{chamado_id}")
-def marcar_como_lido(chamado_id: str, authorization: Optional[str] = Header(None)):
+@app.post("/chamados/{chamado_id}/read")
+def marcar_como_lido(
+    chamado_id: str,
+    authorization: Optional[str] = Header(None),
+):
     info = verify_token_header(authorization)
 
     chamado = chamados_store.get(chamado_id)
@@ -649,7 +665,9 @@ def marcar_como_lido(chamado_id: str, authorization: Optional[str] = Header(None
     return {"success": True}
 
 
-# ---------------- Contador global ----------------
+# =====================================================================
+# ==================== CONTADOR GLOBAL ================================
+# =====================================================================
 
 @app.get("/notifications/count")
 def notifications_count(authorization: Optional[str] = Header(None)):
@@ -660,16 +678,15 @@ def notifications_count(authorization: Optional[str] = Header(None)):
 
     count = 0
 
-    for c in chamados_store.values():
+    for chamado in chamados_store.values():
         if role in ["admin", "ti"]:
-            if "ti" in c.get("nao_lido_por", []):
+            if "ti" in chamado.get("nao_lido_por", []):
                 count += 1
         else:
-            if user in c.get("nao_lido_por", []):
+            if user in chamado.get("nao_lido_por", []):
                 count += 1
 
     return {"count": count}
-
 
 # ---------------- Admin / util ----------------
 @app.post("/admin/cleanup")
