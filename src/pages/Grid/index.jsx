@@ -18,19 +18,25 @@ export default function Grid() {
   const { theme } = useTheme();
 
   const [role, setRole] = useState("comum");
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState(null);
   const [isFading, setIsFading] = useState(false);
 
+  /* =========================
+     ROLE (admin OU ti)
+     ========================= */
   useEffect(() => {
     const storedRole = localStorage.getItem("role") || "comum";
     setRole(storedRole);
-    setIsAdmin(storedRole === "admin");
+
+    // ✅ ADMIN E TI TÊM O MESMO ACESSO
+    setHasAdminAccess(storedRole === "admin" || storedRole === "ti");
   }, []);
 
   const apps = [
-    { title: "RASTREADOR", path: "/rastreador", blocked: !isAdmin },
+    { title: "RASTREADOR", path: "/rastreador", blocked: !hasAdminAccess },
+    { title: "CAMERA", path: "/camera", blocked: !hasAdminAccess },
     { title: "MATERIAIS", path: "/materiais" },
     { title: "PENDENTE", path: "/pendente" },
   ];
@@ -87,7 +93,6 @@ export default function Grid() {
           className={`
             relative flex flex-col items-center gap-3 px-7 py-6 rounded-3xl 
             transition-all duration-300 w-52 shadow-md overflow-hidden
-
             ${
               activeCategory === "apps"
                 ? "bg-gray-300 dark:bg-gray-700 text-black dark:text-white scale-105"
@@ -130,7 +135,6 @@ export default function Grid() {
           className={`
             relative flex flex-col items-center gap-3 px-7 py-6 rounded-3xl 
             transition-all duration-300 w-52 shadow-md overflow-hidden
-
             ${
               activeCategory === "dash"
                 ? "bg-gray-300 dark:bg-gray-700 text-black dark:text-white scale-105"
@@ -192,51 +196,47 @@ export default function Grid() {
                     }
                   `}
                 >
-                  {/* BLOQUEADO */}
                   {course.blocked ? (
                     <div className="bg-black/30 backdrop-blur-2xl text-white p-10 text-center font-semibold text-2xl rounded-3xl shadow-xl">
                       {course.title}
 
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                        <Lock className="w-7 h-7 mr-2" />
-                        <span className="text-lg">Apenas administradores</span>
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-3xl">
+                        <div className="flex items-center gap-2 text-lg font-semibold">
+                          <Lock className="w-6 h-6" />
+                          Apenas administradores
+                        </div>
                       </div>
                     </div>
                   ) : (
                     <Link
                       to={course.path}
                       className={`
-    group block relative p-10 rounded-3xl shadow-xl border border-gray-700/40
-    ${
-      theme === "dark"
-        ? "bg-gradient-to-br from-[#252440] via-[#2f2c79] to-[#5a34f6]"
-        : "bg-gradient-to-br from-white via-[#dce4ff] to-[#b9c8ff]"
-    }
-  `}
+                        group block relative p-10 rounded-3xl shadow-xl border border-gray-700/40
+                        ${
+                          theme === "dark"
+                            ? "bg-gradient-to-br from-[#252440] via-[#2f2c79] to-[#5a34f6]"
+                            : "bg-gradient-to-br from-white via-[#dce4ff] to-[#b9c8ff]"
+                        }
+                      `}
                     >
-                      {/* CÍRCULO COLORIDO */}
                       <div
                         className="absolute w-40 h-40 rounded-full blur-3xl opacity-40 top-[-80px] right-[-80px] 
-                          transition-all duration-700 group-hover:scale-[6]"
+                        transition-all duration-700 group-hover:scale-[6]"
                         style={{ backgroundColor: bgColor }}
                       />
 
-                      {/* TÍTULO */}
                       <div
-                        className={`
-                          relative text-3xl font-extrabold tracking-wide drop-shadow-md
-                          ${theme === "dark" ? "text-white" : "text-black"}
-                        `}
+                        className={`relative text-3xl font-extrabold tracking-wide drop-shadow-md ${
+                          theme === "dark" ? "text-white" : "text-black"
+                        }`}
                       >
                         {course.title}
                       </div>
 
-                      {/* LINHA DECORATIVA */}
                       <div
-                        className={`
-                          relative w-16 h-[3px] mt-4 rounded-full transition-all duration-300 group-hover:w-24
-                          ${theme === "dark" ? "bg-white/80" : "bg-black/80"}
-                        `}
+                        className={`relative w-16 h-[3px] mt-4 rounded-full transition-all duration-300 group-hover:w-24 ${
+                          theme === "dark" ? "bg-white/80" : "bg-black/80"
+                        }`}
                       />
                     </Link>
                   )}

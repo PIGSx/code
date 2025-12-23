@@ -1,5 +1,6 @@
 // src/context/NotificationContext.jsx
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import api from "../utils/apiAxios";
 import { isAuthenticated } from "../utils/auth";
 
@@ -8,6 +9,7 @@ const NotificationContext = createContext();
 export function NotificationProvider({ children }) {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
 
   const fetchCount = async () => {
     if (!isAuthenticated()) {
@@ -27,9 +29,20 @@ export function NotificationProvider({ children }) {
     }
   };
 
-  // 🔄 Busca inicial
+  // 🔄 inicial
   useEffect(() => {
     fetchCount();
+  }, []);
+
+  // 🔄 sempre que mudar de rota
+  useEffect(() => {
+    fetchCount();
+  }, [location.pathname]);
+
+  // 🔄 polling (garante TI atualizado)
+  useEffect(() => {
+    const interval = setInterval(fetchCount, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

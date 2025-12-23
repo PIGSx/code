@@ -56,6 +56,7 @@ allowed_credentials = {
     "jaya":  {"password": "697843", "role": "ti"},
     "hiury": {"password": "thebest", "role": "ti"},
     "renan": {"password": "renan2025", "role": "admin"},
+    "p.henrique": {"password": "pead", "role": "admin"},
     "ana":   {"password": "deusa", "role": "admin"},
     "NovaSP":{"password": "cmnsp2025", "role": "comum"}
 }
@@ -447,16 +448,17 @@ def pendente_process(
 
 
 # ---------------- Routes - Rastreador ----------------
+# ---------------- Routes - Rastreador ----------------
 @app.post("/rastreador/abrir-site")
 def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
-    if info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Acesso negado: somente administradores")
 
-    navegador = None
+    if info["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
     try:
         options = webdriver.ChromeOptions()
-        # options.add_argument("--headless=new")  # pode remover para testar
+        # NÃO usar headless
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
@@ -467,27 +469,19 @@ def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
 
         wait = WebDriverWait(navegador, 30)
 
-        # Aguarda real carregamento
         campo_user = wait.until(
             EC.visibility_of_element_located((By.ID, "id_user"))
         )
 
-        # Clicar no input com movimento real
         actions = ActionChains(navegador)
         actions.move_to_element(campo_user).click().perform()
-        time.sleep(0.4)
+        time.sleep(0.3)
 
-        # Clica de novo só pra garantir foco
-        actions.move_to_element(campo_user).click().perform()
-        time.sleep(0.4)
-
-        # Digitação “humana”
         for letra in "psbltda":
             campo_user.send_keys(letra)
             time.sleep(0.05)
 
         campo_pass = navegador.find_element(By.ID, "id_password")
-
         actions.move_to_element(campo_pass).click().perform()
         time.sleep(0.3)
 
@@ -497,29 +491,93 @@ def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
 
         campo_pass.send_keys(Keys.RETURN)
 
-        # Aguarda login completar
         wait.until(lambda d: "hapolo" in d.current_url.lower())
 
-        cookies = navegador.get_cookies()
-        titulo = navegador.title
-
-        return {"status": "success", "mensagem": "Login concluído!", "title": titulo, "cookies": cookies}
+        return {
+            "status": "success",
+            "mensagem": "Login realizado. Navegador mantido aberto no servidor."
+        }
 
     except Exception as e:
-        logger.exception("Erro rastreador: %s", e)
+        logger.exception("Erro rastreador")
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        try:
-            if navegador:
-                navegador.quit()
-        except Exception:
-            pass
+
+    # ❌ NÃO FECHAR O NAVEGADOR
+    # SEM finally
+
+
+# ---------------- Routes - Camera ----------------
+@app.post("/camera/abrir")
+def camera_abrir(authorization: Optional[str] = Header(None)):
+    info = verify_token_header(authorization)
+
+    if info["role"] not in ["admin", "ti"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    navegador = None
+
+    try:
+        options = webdriver.ChromeOptions()
+        # NÃO usar headless
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+
+        navegador = webdriver.Chrome(options=options)
+        navegador.get("http://roaletelemetria.ddns.net:8070/login")
+
+        wait = WebDriverWait(navegador, 30)
+
+        campo_user = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="login"]'))
+        )
+
+        actions = ActionChains(navegador)
+        actions.move_to_element(campo_user).click().perform()
+        time.sleep(0.3)
+
+        for letra in "globalsm":
+            campo_user.send_keys(letra)
+            time.sleep(0.05)
+
+        campo_pass = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="password"]'))
+        )
+
+        actions.move_to_element(campo_pass).click().perform()
+        time.sleep(0.3)
+
+        for letra in "glob@l1qaz":
+            campo_pass.send_keys(letra)
+            time.sleep(0.05)
+
+        campo_pass.send_keys(Keys.RETURN)
+
+        # Aguarda login efetivo
+        time.sleep(5)
+
+        return {
+            "status": "success",
+            "mensagem": "Login realizado com sucesso. Navegador mantido aberto."
+        }
+
+    except Exception as e:
+        logger.exception("Erro câmera: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # ❌ NÃO FECHAR O NAVEGADOR
 
 
 
 # =====================================================================
 # ===================== CHAMADOS (MEMÓRIA) =============================
 # =====================================================================
+
+from typing import Dict, Optional
+from fastapi import Body, Header, HTTPException
+import uuid
+import time
 
 chamados_store: Dict[str, dict] = {}
 
@@ -546,8 +604,8 @@ def abrir_chamado(
         "autor": info["user"],
         "mensagens": [],
         "criado_em": time.strftime("%Y-%m-%d %H:%M:%S"),
-        # 🔔 controle de leitura
-        "nao_lido_por": ["ti"],  # TI ainda não viu
+        # 🔔 TI ainda não leu
+        "nao_lido_por": ["ti"],
     }
 
     return chamados_store[chamado_id]
@@ -607,7 +665,7 @@ def responder_chamado(
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
-    # usuário só responde o próprio chamado
+    # Usuário só responde o próprio chamado
     if chamado["autor"] != info["user"]:
         require_role(info, "admin")
 
@@ -620,17 +678,27 @@ def responder_chamado(
 
     chamado["mensagens"].append(mensagem)
 
-    # 🔔 CONTROLE DE NOTIFICAÇÃO
+    # =====================================================
+    # 🔔 CONTROLE CORRETO DE NOTIFICAÇÃO
+    # =====================================================
+
+    # Remove quem enviou (nunca se notifica)
+    if info["user"] in chamado["nao_lido_por"]:
+        chamado["nao_lido_por"].remove(info["user"])
+    if info["role"] in ["admin", "ti"] and "ti" in chamado["nao_lido_por"]:
+        chamado["nao_lido_por"].remove("ti")
+
+    # Quem DEVE ser notificado?
     if info["role"] in ["admin", "ti"]:
         chamado["status"] = "Em andamento"
 
-        # autor ainda não leu
+        # Notifica o autor
         if chamado["autor"] not in chamado["nao_lido_por"]:
             chamado["nao_lido_por"].append(chamado["autor"])
     else:
         chamado["status"] = "Respondido"
 
-        # TI ainda não leu
+        # Notifica o TI
         if "ti" not in chamado["nao_lido_por"]:
             chamado["nao_lido_por"].append("ti")
 
@@ -678,15 +746,16 @@ def notifications_count(authorization: Optional[str] = Header(None)):
 
     count = 0
 
-    for chamado in chamados_store.values():
+    for c in chamados_store.values():
         if role in ["admin", "ti"]:
-            if "ti" in chamado.get("nao_lido_por", []):
+            if "ti" in c.get("nao_lido_por", []):
                 count += 1
         else:
-            if user in chamado.get("nao_lido_por", []):
+            if user in c.get("nao_lido_por", []):
                 count += 1
 
     return {"count": count}
+
 
 # ---------------- Admin / util ----------------
 @app.post("/admin/cleanup")

@@ -19,6 +19,7 @@ import SM from "../pages/Dashs/Polos/SM";
 
 /* ===== APLICATIVOS ===== */
 import Rastreador from "../pages/Aplicativos/Rastreador";
+import Camera from "../pages/Aplicativos/Camera";
 import Pendente from "../pages/Aplicativos/Pendente";
 import Materiais from "../pages/Aplicativos/Materiais";
 import MateriaisList from "../pages/Aplicativos/Materiais/MateriaisList";
@@ -101,6 +102,7 @@ export default function RoutesPage() {
 
         {/* ===== APLICATIVOS ===== */}
         <Route path="/rastreador" element={<Rastreador />} />
+        <Route path="/camera" element={<Camera/> } />
         <Route path="/pendente" element={<Pendente />} />
         <Route path="/materiais" element={<Materiais />} />
         <Route path="/materiaislist" element={<MateriaisList />} />
