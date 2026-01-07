@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 import pandas as pd
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Header, Body, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, StreamingResponse, Response
+from fastapi.responses import JSONResponse, StreamingResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -223,38 +223,31 @@ def upload_materiais(file: UploadFile = File(...), authorization: Optional[str] 
 # ---------------- Routes - Pendente (novo) ----------------
 
 
+import unicodedata
+import re
+
 BASE_DIR = "files"
 os.makedirs(BASE_DIR, exist_ok=True)
 
-FILES = {}   # file_id -> dataframe
-FILTERS = [] # filtros salvos em memória
 
-# =========================
-# UTIL — NORMALIZA COLUNAS
-# =========================
+FILES_ORIGINAL: Dict[str, pd.DataFrame] = {}
+FILES_FILTERED: Dict[str, pd.DataFrame] = {}
+FILTERS = []
+
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
-        .str.replace(".", "", regex=False)
-        .str.replace("ç", "c", regex=False)
-        .str.replace("ã", "a", regex=False)
-        .str.replace("á", "a", regex=False)
-        .str.replace("é", "e", regex=False)
-        .str.replace("í", "i", regex=False)
-        .str.replace("ó", "o", regex=False)
-        .str.replace("ú", "u", regex=False)
-        .str.replace("ý", "y", regex=False)
-    )
+    def norm(col):
+        col = unicodedata.normalize("NFKD", col)
+        col = col.encode("ascii", "ignore").decode("ascii")
+        col = col.lower().strip()
+        col = re.sub(r"\s+", "_", col)
+        return col
+
+    df.columns = [norm(c) for c in df.columns]
     return df
 
-# =========================
-# UPLOAD
-# =========================
+
 @app.post("/pendente/upload")
-async def upload(file: UploadFile = File(...)):
+async def pendente_upload(file: UploadFile = File(...)):
     try:
         df = pd.read_excel(file.file)
     except Exception:
@@ -262,7 +255,6 @@ async def upload(file: UploadFile = File(...)):
 
     df = normalize_columns(df)
 
-    # 🔎 valida colunas obrigatórias
     required = ["contrato", "atc", "descricao_tss"]
     for col in required:
         if col not in df.columns:
@@ -272,62 +264,71 @@ async def upload(file: UploadFile = File(...)):
             )
 
     file_id = str(uuid.uuid4())
-    FILES[file_id] = df
+
+    FILES_ORIGINAL[file_id] = df
+    FILES_FILTERED[file_id] = df.copy()
 
     return {
         "file_id": file_id,
         "contratos": sorted(df["contrato"].dropna().astype(str).unique().tolist()),
-        "atcs": sorted(df["atc"].dropna().astype(str).unique().tolist()),
+        "atcs": sorted(
+            df["atc"]
+            .dropna()
+            .astype(str)
+            .str.split("-")
+            .str[0]
+            .str.strip()
+            .unique()
+            .tolist()
+        ),
         "descricoes": sorted(df["descricao_tss"].dropna().astype(str).unique().tolist()),
     }
 
-# =========================
-# APLICAR FILTROS
-# =========================
+
 @app.post("/pendente/filter")
-async def apply_filter(payload: dict):
+async def pendente_filter(payload: dict):
     file_id = payload.get("file_id")
     filtros = payload.get("filtros", {})
 
-    if file_id not in FILES:
+    if file_id not in FILES_ORIGINAL:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-    df = FILES[file_id].copy()
+    df = FILES_ORIGINAL[file_id].copy()
 
-    contratos = filtros.get("contratos", [])
-    atcs = filtros.get("atcs", [])
-    descricoes = filtros.get("descricoes", [])
+    if filtros.get("contratos"):
+        df = df[df["contrato"].astype(str).isin(filtros["contratos"])]
 
-    if contratos:
-        df = df[df["contrato"].astype(str).isin(contratos)]
+    if filtros.get("atcs"):
+        df["atc"] = (
+            df["atc"]
+            .astype(str)
+            .str.split("-")
+            .str[0]
+            .str.strip()
+        )
+        df = df[df["atc"].isin(filtros["atcs"])]
 
-    if atcs:
-        df = df[df["atc"].astype(str).isin(atcs)]
+    if filtros.get("descricoes"):
+        df = df[df["descricao_tss"].astype(str).isin(filtros["descricoes"])]
 
-    if descricoes:
-        df = df[df["descricao_tss"].astype(str).isin(descricoes)]
-
-    # 🔥 guarda dataframe filtrado
-    FILES[file_id] = df
+    FILES_FILTERED[file_id] = df
 
     return {"linhas_resultantes": len(df)}
 
-# =========================
-# FORMATAR / DOWNLOAD
-# =========================
+
 @app.post("/pendente/format")
-async def format_file(payload: dict):
+async def pendente_format(payload: dict):
     file_id = payload.get("file_id")
 
-    if file_id not in FILES:
+    if file_id not in FILES_FILTERED:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-    df = FILES[file_id]
+    df = FILES_FILTERED[file_id]
 
     if df.empty:
         raise HTTPException(
             status_code=400,
-            detail="Resultado vazio após filtros"
+            detail="Nenhum registro encontrado com os filtros aplicados"
         )
 
     output_path = os.path.join(BASE_DIR, f"{file_id}.xlsx")
@@ -339,27 +340,6 @@ async def format_file(payload: dict):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-# =========================
-# FILTROS SALVOS
-# =========================
-@app.get("/pendente/filters")
-async def list_filters():
-    return FILTERS
-
-@app.post("/pendente/filters/apply")
-async def apply_saved_filter(payload: dict):
-    file_id = payload.get("file_id")
-    filtro = payload.get("filtro")
-
-    if not filtro:
-        raise HTTPException(status_code=400, detail="Filtro inválido")
-
-    payload = {
-        "file_id": file_id,
-        "filtros": filtro
-    }
-
-    return await apply_filter(payload)
     
 
 # ---------------- Routes - Rastreador ----------------

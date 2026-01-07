@@ -24,6 +24,7 @@ import Pendente from "../pages/Aplicativos/Pendente";
 import Materiais from "../pages/Aplicativos/Materiais";
 import MateriaisList from "../pages/Aplicativos/Materiais/MateriaisList";
 import MateriaisApp from "../pages/Aplicativos/Materiais/MateriaisApp";
+import Kits from "../pages/Aplicativos/Materiais/Kits"
 
 /* ===== LOGIN ===== */
 import LoginPage from "../pages/Login";
@@ -107,6 +108,7 @@ export default function RoutesPage() {
         <Route path="/materiais" element={<Materiais />} />
         <Route path="/materiaislist" element={<MateriaisList />} />
         <Route path="/materiaisapp" element={<MateriaisApp />} />
+        <Route path="/kits" element={<Kits/>} />
 
         {/* =============================
             SUPORTE — USUÁRIO COMUM

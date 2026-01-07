@@ -1,13 +1,14 @@
 import { useState } from "react";
 import api from "./../../../utils/apiAxios";
+import { motion } from "framer-motion";
+import { useTheme } from "../../../context/ThemeContext";
+import { Upload, Filter, Download } from "lucide-react";
 
 export default function Pendente() {
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
 
   const [fileId, setFileId] = useState(null);
-  const [filename, setFilename] = useState("");
-  const [sheets, setSheets] = useState([]);
-  const [sheet, setSheet] = useState("");
 
   const [options, setOptions] = useState({
     contratos: [],
@@ -15,15 +16,17 @@ export default function Pendente() {
     descricoes: [],
   });
 
-  const [contratos, setContratos] = useState([]);
-  const [atcs, setAtcs] = useState([]);
-  const [descricoes, setDescricoes] = useState([]);
+  const [filtros, setFiltros] = useState({
+    contratos: [],
+    atcs: [],
+    descricoes: [],
+  });
 
   // ===============================
   // UPLOAD
   // ===============================
   const upload = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     try {
@@ -35,35 +38,15 @@ export default function Pendente() {
       const res = await api.post("/pendente/upload", form);
 
       setFileId(res.data.file_id);
-      setFilename(res.data.filename);
-      setSheets(res.data.sheets);
-      setSheet("");
-    } catch (err) {
-      console.error(err);
-      alert("Erro no upload");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ===============================
-  // CARREGAR OPÇÕES
-  // ===============================
-  const carregarOpcoes = async (sheetName) => {
-    try {
-      setLoading(true);
-
-      const res = await api.get("/pendente/options", {
-        params: { file_id: fileId, sheet: sheetName },
+      setOptions({
+        contratos: res.data.contratos || [],
+        atcs: res.data.atcs || [],
+        descricoes: res.data.descricoes || [],
       });
 
-      setOptions(res.data);
-      setContratos([]);
-      setAtcs([]);
-      setDescricoes([]);
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao carregar opções");
+      setFiltros({ contratos: [], atcs: [], descricoes: [] });
+    } catch {
+      alert("Erro no upload da planilha");
     } finally {
       setLoading(false);
     }
@@ -72,109 +55,159 @@ export default function Pendente() {
   // ===============================
   // TOGGLE
   // ===============================
-  const toggle = (value, list, setList) => {
-    setList(
-      list.includes(value)
-        ? list.filter((v) => v !== value)
-        : [...list, value]
-    );
+  const toggle = (tipo, valor) => {
+    setFiltros((prev) => ({
+      ...prev,
+      [tipo]: prev[tipo].includes(valor)
+        ? prev[tipo].filter((v) => v !== valor)
+        : [...prev[tipo], valor],
+    }));
   };
 
   // ===============================
-  // PROCESSAR / DOWNLOAD
+  // APLICAR FILTROS
   // ===============================
-  const processar = async () => {
+  const aplicarFiltro = async () => {
     try {
       setLoading(true);
+      await api.post("/pendente/filter", { file_id: fileId, filtros });
+    } catch {
+      alert("Erro ao aplicar filtros");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      const form = new FormData();
-      form.append("file_id", fileId);
-      form.append("sheet", sheet);
-      form.append("contratos", JSON.stringify(contratos));
-      form.append("atcs", JSON.stringify(atcs));
-      form.append("descricoes", JSON.stringify(descricoes));
-      form.append("nome_do_relatorio", "pendente.xlsx");
-
-      const res = await api.post("/pendente/process", form, {
-        responseType: "blob",
-      });
+  // ===============================
+  // DOWNLOAD
+  // ===============================
+  const baixar = async () => {
+    try {
+      setLoading(true);
+      const res = await api.post(
+        "/pendente/format",
+        { file_id: fileId },
+        { responseType: "blob" }
+      );
 
       const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "pendente.xlsx";
-      link.click();
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao processar");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pendente.xlsx";
+      a.click();
+    } catch {
+      alert("Erro ao gerar planilha");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6 relative">
+    <div
+      className={`min-h-screen p-8 transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gradient-to-b from-gray-900 via-gray-950 to-black text-gray-100"
+          : "bg-gray-50 text-gray-900"
+      }`}
+    >
+      {/* LOADING */}
       {loading && (
-        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-50">
-          <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full" />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="w-14 h-14 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
-      <h1 className="text-2xl font-bold">Pendente</h1>
+      {/* TÍTULO */}
+      <motion.h1
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-4xl font-extrabold mb-10"
+      >
+        📄 Pendente
+      </motion.h1>
 
-      <input type="file" onChange={upload} />
+      {/* UPLOAD */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`rounded-3xl p-6 shadow-xl border ${
+          theme === "dark"
+            ? "bg-gray-800/60 border-gray-700"
+            : "bg-white border-gray-200"
+        }`}
+      >
+        <label className="flex items-center gap-4 cursor-pointer">
+          <Upload className="w-6 h-6 opacity-80" />
+          <span className="font-semibold">Selecionar planilha</span>
+          <input type="file" onChange={upload} className="hidden" />
+        </label>
+      </motion.div>
 
-      {sheets.length > 0 && (
-        <select
-          className="border p-2"
-          value={sheet}
-          onChange={(e) => {
-            setSheet(e.target.value);
-            carregarOpcoes(e.target.value);
-          }}
-        >
-          <option value="">Selecione a aba</option>
-          {sheets.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {sheet && (
-        <div className="grid grid-cols-3 gap-4">
+      {/* FILTROS */}
+      {fileId && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
           {[
-            ["Contratos", options.contratos, contratos, setContratos],
-            ["ATCs", options.atcs, atcs, setAtcs],
-            ["Descrição TSS", options.descricoes, descricoes, setDescricoes],
-          ].map(([titulo, itens, estado, setter]) => (
-            <div key={titulo} className="border p-3 rounded">
-              <h2 className="font-semibold mb-2">{titulo}</h2>
-              <div className="max-h-48 overflow-auto space-y-1">
-                {itens.map((i) => (
-                  <label key={i} className="flex gap-2 text-sm">
+            ["contratos", "Contratos"],
+            ["atcs", "ATCs"],
+            ["descricoes", "Descrição TSS"],
+          ].map(([key, label], i) => (
+            <motion.div
+              key={key}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className={`rounded-3xl p-6 shadow-xl border ${
+                theme === "dark"
+                  ? "bg-gray-800/60 border-gray-700"
+                  : "bg-white border-gray-200"
+              }`}
+            >
+              <h2 className="font-bold mb-4">{label}</h2>
+
+              <div className="max-h-56 overflow-auto space-y-2 text-sm">
+                {(options[key] || []).map((item) => (
+                  <label
+                    key={item}
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                  >
                     <input
                       type="checkbox"
-                      checked={estado.includes(i)}
-                      onChange={() => toggle(i, estado, setter)}
+                      checked={filtros[key].includes(item)}
+                      onChange={() => toggle(key, item)}
+                      className="accent-violet-500"
                     />
-                    {i}
+                    {item}
                   </label>
                 ))}
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
 
-      {sheet && (
-        <button
-          onClick={processar}
-          className="bg-green-600 text-white px-4 py-2 rounded"
-        >
-          Gerar Planilha
-        </button>
+      {/* AÇÕES */}
+      {fileId && (
+        <div className="flex gap-6 mt-12">
+          <button
+            onClick={aplicarFiltro}
+            className="flex items-center gap-2 px-8 py-3 rounded-2xl font-semibold
+              bg-gradient-to-r from-indigo-500 to-violet-600 text-white
+              hover:scale-105 transition-all shadow-lg"
+          >
+            <Filter className="w-5 h-5" />
+            Aplicar Filtros
+          </button>
+
+          <button
+            onClick={baixar}
+            className="flex items-center gap-2 px-8 py-3 rounded-2xl font-semibold
+              bg-gradient-to-r from-emerald-500 to-green-600 text-white
+              hover:scale-105 transition-all shadow-lg"
+          >
+            <Download className="w-5 h-5" />
+            Gerar Planilha
+          </button>
+        </div>
       )}
     </div>
   );

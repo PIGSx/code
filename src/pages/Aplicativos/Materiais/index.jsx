@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { List, AppWindow } from "lucide-react";
+import { List, AppWindow, Package } from "lucide-react";
 import { isAuthenticated } from "../../../utils/auth";
 import { useTheme } from "../../../context/ThemeContext";
 
@@ -22,6 +22,13 @@ export default function Ylika() {
       description: "Gerencie as baixas de materiais na base.",
       link: "/materiaisapp",
       icon: <AppWindow className="w-8 h-8" />,
+    },
+    {
+      id: 3,
+      title: "Kits",
+      description: "Materiais usados em casa TSS para base e operações.",
+      link: "/kits",
+      icon: <Package className="w-8 h-8" />,
     },
   ];
 
@@ -52,11 +59,11 @@ export default function Ylika() {
           bg-clip-text text-transparent text-center
         "
       >
-        Materiais 
+        Materiais
       </h1>
 
       {/* GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 w-full max-w-5xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 w-full max-w-6xl">
         {cards.map((card) => (
           <div
             key={card.id}
