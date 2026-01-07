@@ -7,18 +7,19 @@ import { Upload, Filter, Download } from "lucide-react";
 export default function Pendente() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
-
   const [fileId, setFileId] = useState(null);
 
   const [options, setOptions] = useState({
     contratos: [],
     atcs: [],
+    familias: [],
     descricoes: [],
   });
 
   const [filtros, setFiltros] = useState({
     contratos: [],
     atcs: [],
+    familias: [],
     descricoes: [],
   });
 
@@ -41,10 +42,16 @@ export default function Pendente() {
       setOptions({
         contratos: res.data.contratos || [],
         atcs: res.data.atcs || [],
+        familias: res.data.familias || [],
         descricoes: res.data.descricoes || [],
       });
 
-      setFiltros({ contratos: [], atcs: [], descricoes: [] });
+      setFiltros({
+        contratos: [],
+        atcs: [],
+        familias: [],
+        descricoes: [],
+      });
     } catch {
       alert("Erro no upload da planilha");
     } finally {
@@ -70,7 +77,10 @@ export default function Pendente() {
   const aplicarFiltro = async () => {
     try {
       setLoading(true);
-      await api.post("/pendente/filter", { file_id: fileId, filtros });
+      await api.post("/pendente/filter", {
+        file_id: fileId,
+        filtros,
+      });
     } catch {
       alert("Erro ao aplicar filtros");
     } finally {
@@ -145,17 +155,18 @@ export default function Pendente() {
 
       {/* FILTROS */}
       {fileId && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-10">
           {[
             ["contratos", "Contratos"],
             ["atcs", "ATCs"],
+            ["familias", "Famílias"],
             ["descricoes", "Descrição TSS"],
           ].map(([key, label], i) => (
             <motion.div
               key={key}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: i * 0.08 }}
               className={`rounded-3xl p-6 shadow-xl border ${
                 theme === "dark"
                   ? "bg-gray-800/60 border-gray-700"
@@ -165,6 +176,12 @@ export default function Pendente() {
               <h2 className="font-bold mb-4">{label}</h2>
 
               <div className="max-h-56 overflow-auto space-y-2 text-sm">
+                {(options[key] || []).length === 0 && (
+                  <p className="text-gray-400 text-center text-sm">
+                    Nenhum item
+                  </p>
+                )}
+
                 {(options[key] || []).map((item) => (
                   <label
                     key={item}
@@ -176,7 +193,7 @@ export default function Pendente() {
                       onChange={() => toggle(key, item)}
                       className="accent-violet-500"
                     />
-                    {item}
+                    <span className="truncate">{item}</span>
                   </label>
                 ))}
               </div>
@@ -187,7 +204,7 @@ export default function Pendente() {
 
       {/* AÇÕES */}
       {fileId && (
-        <div className="flex gap-6 mt-12">
+        <div className="flex flex-wrap gap-6 mt-12">
           <button
             onClick={aplicarFiltro}
             className="flex items-center gap-2 px-8 py-3 rounded-2xl font-semibold

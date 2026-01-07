@@ -246,6 +246,9 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ===============================
+# UPLOAD
+# ===============================
 @app.post("/pendente/upload")
 async def pendente_upload(file: UploadFile = File(...)):
     try:
@@ -255,7 +258,7 @@ async def pendente_upload(file: UploadFile = File(...)):
 
     df = normalize_columns(df)
 
-    required = ["contrato", "atc", "descricao_tss"]
+    required = ["contrato", "atc", "descricao_tss", "familia"]
     for col in required:
         if col not in df.columns:
             raise HTTPException(
@@ -270,7 +273,9 @@ async def pendente_upload(file: UploadFile = File(...)):
 
     return {
         "file_id": file_id,
-        "contratos": sorted(df["contrato"].dropna().astype(str).unique().tolist()),
+        "contratos": sorted(
+            df["contrato"].dropna().astype(str).unique().tolist()
+        ),
         "atcs": sorted(
             df["atc"]
             .dropna()
@@ -281,10 +286,18 @@ async def pendente_upload(file: UploadFile = File(...)):
             .unique()
             .tolist()
         ),
-        "descricoes": sorted(df["descricao_tss"].dropna().astype(str).unique().tolist()),
+        "familias": sorted(
+            df["familia"].dropna().astype(str).unique().tolist()
+        ),
+        "descricoes": sorted(
+            df["descricao_tss"].dropna().astype(str).unique().tolist()
+        ),
     }
 
 
+# ===============================
+# FILTRAR
+# ===============================
 @app.post("/pendente/filter")
 async def pendente_filter(payload: dict):
     file_id = payload.get("file_id")
@@ -308,6 +321,9 @@ async def pendente_filter(payload: dict):
         )
         df = df[df["atc"].isin(filtros["atcs"])]
 
+    if filtros.get("familias"):
+        df = df[df["familia"].astype(str).isin(filtros["familias"])]
+
     if filtros.get("descricoes"):
         df = df[df["descricao_tss"].astype(str).isin(filtros["descricoes"])]
 
@@ -316,6 +332,9 @@ async def pendente_filter(payload: dict):
     return {"linhas_resultantes": len(df)}
 
 
+# ===============================
+# FORMATAR / DOWNLOAD
+# ===============================
 @app.post("/pendente/format")
 async def pendente_format(payload: dict):
     file_id = payload.get("file_id")
@@ -336,24 +355,24 @@ async def pendente_format(payload: dict):
 
     return FileResponse(
         output_path,
-        filename="planilha_formatada.xlsx",
+        filename="pendente.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
     
 
-# ---------------- Routes - Rastreador ----------------
 # ---------------- Routes - Rastreador ----------------
 @app.post("/rastreador/abrir-site")
 def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
 
-    if info["role"] != "admin":
+    # admin OU ti
+    if info["role"] not in ["admin", "ti"]:
         raise HTTPException(status_code=403, detail="Acesso negado")
+
+    navegador = None
 
     try:
         options = webdriver.ChromeOptions()
-        # NÃO usar headless
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
@@ -397,8 +416,6 @@ def rastreador_abrir_site(authorization: Optional[str] = Header(None)):
         logger.exception("Erro rastreador")
         raise HTTPException(status_code=500, detail=str(e))
 
-    # ❌ NÃO FECHAR O NAVEGADOR
-    # SEM finally
 
 
 # ---------------- Routes - Camera ----------------
@@ -464,20 +481,64 @@ def camera_abrir(authorization: Optional[str] = Header(None)):
     # ❌ NÃO FECHAR O NAVEGADOR
 
 
-
 # =====================================================================
-# ===================== CHAMADOS (MEMÓRIA) =============================
+# ======================= CHAMADOS (MEMÓRIA) ===========================
 # =====================================================================
 
-from typing import Dict, Optional
-from fastapi import Body, Header, HTTPException
+from typing import Dict, Optional, List
+from fastapi import FastAPI, Body, Header, HTTPException
+from pydantic import BaseModel
 import uuid
 import time
 
+app = FastAPI()
+
+# =====================================================================
+# ======================= STORE EM MEMÓRIA =============================
+# =====================================================================
+
 chamados_store: Dict[str, dict] = {}
 
+# =====================================================================
+# ======================= MODELS ======================================
+# =====================================================================
 
-# ---------------- Abrir chamado ----------------
+class MensagemBody(BaseModel):
+    texto: str
+
+# =====================================================================
+# ======================= HELPERS (AUTH) ===============================
+# =====================================================================
+
+def verify_token_header(authorization: Optional[str]):
+    """
+    Deve retornar:
+    {
+        "user": "nome",
+        "role": "comum" | "admin" | "ti"
+    }
+    """
+    if not authorization:
+        raise HTTPException(401, "Token ausente")
+
+    # 🔴 IMPLEMENTAÇÃO REAL JÁ EXISTE NO SEU PROJETO
+    # Aqui é apenas ilustrativo
+    return {
+        "user": "usuario_teste",
+        "role": "admin"
+    }
+
+
+def require_role(info, roles):
+    if isinstance(roles, str):
+        roles = [roles]
+
+    if info["role"] not in roles:
+        raise HTTPException(403, "Acesso negado")
+
+# =====================================================================
+# ======================= ABRIR CHAMADO ================================
+# =====================================================================
 
 @app.post("/chamados")
 def abrir_chamado(
@@ -490,6 +551,16 @@ def abrir_chamado(
 
     chamado_id = str(uuid.uuid4())
 
+    # 🔔 Define quem deve ser notificado
+    nao_lido_por: List[str] = []
+
+    if info["role"] == "comum":
+        nao_lido_por = ["admin", "ti"]
+    else:
+        nao_lido_por = ["admin", "ti"]
+        if info["role"] in nao_lido_por:
+            nao_lido_por.remove(info["role"])
+
     chamados_store[chamado_id] = {
         "id": chamado_id,
         "titulo": titulo,
@@ -497,16 +568,17 @@ def abrir_chamado(
         "descricao": descricao,
         "status": "Aberto",
         "autor": info["user"],
+        "autor_role": info["role"],
         "mensagens": [],
         "criado_em": time.strftime("%Y-%m-%d %H:%M:%S"),
-        # 🔔 TI ainda não leu
-        "nao_lido_por": ["ti"],
+        "nao_lido_por": nao_lido_por,
     }
 
     return chamados_store[chamado_id]
 
-
-# ---------------- Meus chamados ----------------
+# =====================================================================
+# ======================= MEUS CHAMADOS ================================
+# =====================================================================
 
 @app.get("/meus-chamados")
 def meus_chamados(authorization: Optional[str] = Header(None)):
@@ -517,21 +589,26 @@ def meus_chamados(authorization: Optional[str] = Header(None)):
         if c["autor"] == info["user"]
     ]
 
-
-# ---------------- Listar todos (admin / ti) ----------------
+# =====================================================================
+# ======================= LISTAR TODOS =================================
+# =====================================================================
 
 @app.get("/chamados")
 def listar_chamados(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
-    require_role(info, "admin")
+    require_role(info, ["admin", "ti"])
 
     return list(chamados_store.values())
 
-
-# ---------------- Detalhe do chamado ----------------
+# =====================================================================
+# ======================= DETALHE DO CHAMADO ===========================
+# =====================================================================
 
 @app.get("/chamados/{chamado_id}")
-def detalhe_chamado(chamado_id: str, authorization: Optional[str] = Header(None)):
+def detalhe_chamado(
+    chamado_id: str,
+    authorization: Optional[str] = Header(None)
+):
     info = verify_token_header(authorization)
 
     chamado = chamados_store.get(chamado_id)
@@ -539,13 +616,12 @@ def detalhe_chamado(chamado_id: str, authorization: Optional[str] = Header(None)
         raise HTTPException(404, "Chamado não encontrado")
 
     if chamado["autor"] != info["user"]:
-        require_role(info, "admin")
+        require_role(info, ["admin", "ti"])
 
     return chamado
 
-
 # =====================================================================
-# ============================ CHAT ===================================
+# ======================= RESPONDER CHAMADO ============================
 # =====================================================================
 
 @app.post("/chamados/{chamado_id}/mensagens")
@@ -560,9 +636,8 @@ def responder_chamado(
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
-    # Usuário só responde o próprio chamado
     if chamado["autor"] != info["user"]:
-        require_role(info, "admin")
+        require_role(info, ["admin", "ti"])
 
     mensagem = {
         "autor": info["user"],
@@ -573,35 +648,32 @@ def responder_chamado(
 
     chamado["mensagens"].append(mensagem)
 
-    # =====================================================
-    # 🔔 CONTROLE CORRETO DE NOTIFICAÇÃO
-    # =====================================================
+    # ================= NOTIFICAÇÕES =================
 
-    # Remove quem enviou (nunca se notifica)
+    # Remove quem respondeu
+    if info["role"] in chamado["nao_lido_por"]:
+        chamado["nao_lido_por"].remove(info["role"])
+
     if info["user"] in chamado["nao_lido_por"]:
         chamado["nao_lido_por"].remove(info["user"])
-    if info["role"] in ["admin", "ti"] and "ti" in chamado["nao_lido_por"]:
-        chamado["nao_lido_por"].remove("ti")
 
-    # Quem DEVE ser notificado?
+    # Define novo status + quem será notificado
     if info["role"] in ["admin", "ti"]:
         chamado["status"] = "Em andamento"
 
-        # Notifica o autor
         if chamado["autor"] not in chamado["nao_lido_por"]:
             chamado["nao_lido_por"].append(chamado["autor"])
     else:
         chamado["status"] = "Respondido"
 
-        # Notifica o TI
-        if "ti" not in chamado["nao_lido_por"]:
-            chamado["nao_lido_por"].append("ti")
+        for r in ["admin", "ti"]:
+            if r not in chamado["nao_lido_por"]:
+                chamado["nao_lido_por"].append(r)
 
     return mensagem
 
-
 # =====================================================================
-# ====================== MARCAR COMO LIDO ==============================
+# ======================= MARCAR COMO LIDO =============================
 # =====================================================================
 
 @app.post("/chamados/{chamado_id}/read")
@@ -615,41 +687,34 @@ def marcar_como_lido(
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
-    user = info["user"]
-    role = info["role"]
+    if info["role"] in chamado["nao_lido_por"]:
+        chamado["nao_lido_por"].remove(info["role"])
 
-    if role in ["admin", "ti"]:
-        if "ti" in chamado["nao_lido_por"]:
-            chamado["nao_lido_por"].remove("ti")
-    else:
-        if user in chamado["nao_lido_por"]:
-            chamado["nao_lido_por"].remove(user)
+    if info["user"] in chamado["nao_lido_por"]:
+        chamado["nao_lido_por"].remove(info["user"])
 
     return {"success": True}
 
-
 # =====================================================================
-# ==================== CONTADOR GLOBAL ================================
+# ======================= CONTADOR DE NOTIFICAÇÕES =====================
 # =====================================================================
 
 @app.get("/notifications/count")
 def notifications_count(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
 
-    user = info["user"]
-    role = info["role"]
-
     count = 0
 
     for c in chamados_store.values():
-        if role in ["admin", "ti"]:
-            if "ti" in c.get("nao_lido_por", []):
+        if info["role"] in ["admin", "ti"]:
+            if info["role"] in c.get("nao_lido_por", []):
                 count += 1
         else:
-            if user in c.get("nao_lido_por", []):
+            if info["user"] in c.get("nao_lido_por", []):
                 count += 1
 
     return {"count": count}
+
 
 
 # ---------------- Admin / util ----------------
