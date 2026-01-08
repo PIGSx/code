@@ -152,12 +152,13 @@ const Navbar = () => {
   /* =========================
      Menu
   ========================= */
-  const navItems = [
-    { label: "Downloads", path: "/download" },
-    hasRole("admin") || hasRole("ti")
-      ? { label: "Chamados", path: "/chamados", showBadge: true }
-      : { label: "Suporte", path: "/suporte", showBadge: true },
-  ];
+const navItems = [
+  { label: "Downloads", path: "/download" },
+
+  role === "ti"
+    ? { label: "Chamados", path: "/chamados", showBadge: true }
+    : { label: "Suporte", path: "/suporte", showBadge: true },
+];
 
   if (location.pathname === "/login") return null;
 

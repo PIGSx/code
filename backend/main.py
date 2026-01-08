@@ -1,22 +1,44 @@
-# main.py — FastAPI unificada (login, materiais, rastreador interativo, pendente)
+# main.py — FastAPI unificada (login, materiais, rastreador/camera interativo, pendente)
+# =========================================================
+# main.py — Technoblade Unified API (FastAPI)
+# =========================================================
+
 import os
 import uuid
 import time
 import json
 import tempfile
 import logging
+import unicodedata
+import re
+import uvicorn
 from pathlib import Path
-from base64 import b64encode
 from typing import List, Optional, Dict, Any
+
+# -------------------- Third-party --------------------
+import pandas as pd
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Header,
+    Body,
+    WebSocket,
+    WebSocketDisconnect,
+)
+from fastapi.responses import (
+    JSONResponse,
+    StreamingResponse,
+    Response,
+    FileResponse,
+)
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-import pandas as pd
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Header, Body, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, StreamingResponse, Response, FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-
-
-# Selenium imports (usados pelo rastreador)
+# -------------------- Selenium --------------------
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -223,8 +245,7 @@ def upload_materiais(file: UploadFile = File(...), authorization: Optional[str] 
 # ---------------- Routes - Pendente (novo) ----------------
 
 
-import unicodedata
-import re
+
 
 BASE_DIR = "files"
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -485,14 +506,6 @@ def camera_abrir(authorization: Optional[str] = Header(None)):
 # ======================= CHAMADOS (MEMÓRIA) ===========================
 # =====================================================================
 
-from typing import Dict, Optional, List
-from fastapi import FastAPI, Body, Header, HTTPException
-from pydantic import BaseModel
-import uuid
-import time
-
-app = FastAPI()
-
 # =====================================================================
 # ======================= STORE EM MEMÓRIA =============================
 # =====================================================================
@@ -505,36 +518,6 @@ chamados_store: Dict[str, dict] = {}
 
 class MensagemBody(BaseModel):
     texto: str
-
-# =====================================================================
-# ======================= HELPERS (AUTH) ===============================
-# =====================================================================
-
-def verify_token_header(authorization: Optional[str]):
-    """
-    Deve retornar:
-    {
-        "user": "nome",
-        "role": "comum" | "admin" | "ti"
-    }
-    """
-    if not authorization:
-        raise HTTPException(401, "Token ausente")
-
-    # 🔴 IMPLEMENTAÇÃO REAL JÁ EXISTE NO SEU PROJETO
-    # Aqui é apenas ilustrativo
-    return {
-        "user": "usuario_teste",
-        "role": "admin"
-    }
-
-
-def require_role(info, roles):
-    if isinstance(roles, str):
-        roles = [roles]
-
-    if info["role"] not in roles:
-        raise HTTPException(403, "Acesso negado")
 
 # =====================================================================
 # ======================= ABRIR CHAMADO ================================
@@ -551,15 +534,12 @@ def abrir_chamado(
 
     chamado_id = str(uuid.uuid4())
 
-    # 🔔 Define quem deve ser notificado
-    nao_lido_por: List[str] = []
+    # Quem deve ser notificado inicialmente
+    nao_lido_por: List[str] = ["admin", "ti"]
 
-    if info["role"] == "comum":
-        nao_lido_por = ["admin", "ti"]
-    else:
-        nao_lido_por = ["admin", "ti"]
-        if info["role"] in nao_lido_por:
-            nao_lido_por.remove(info["role"])
+    # Remove quem abriu da lista
+    if info["role"] in nao_lido_por:
+        nao_lido_por.remove(info["role"])
 
     chamados_store[chamado_id] = {
         "id": chamado_id,
@@ -596,7 +576,9 @@ def meus_chamados(authorization: Optional[str] = Header(None)):
 @app.get("/chamados")
 def listar_chamados(authorization: Optional[str] = Header(None)):
     info = verify_token_header(authorization)
-    require_role(info, ["admin", "ti"])
+
+    if info["role"] not in ["admin", "ti"]:
+        raise HTTPException(403, "Acesso negado")
 
     return list(chamados_store.values())
 
@@ -615,8 +597,13 @@ def detalhe_chamado(
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
-    if chamado["autor"] != info["user"]:
-        require_role(info, ["admin", "ti"])
+    # Autor pode ver o próprio
+    if chamado["autor"] == info["user"]:
+        return chamado
+
+    # Admin e TI podem ver todos
+    if info["role"] not in ["admin", "ti"]:
+        raise HTTPException(403, "Acesso negado")
 
     return chamado
 
@@ -636,8 +623,13 @@ def responder_chamado(
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
 
-    if chamado["autor"] != info["user"]:
-        require_role(info, ["admin", "ti"])
+    # ❌ ADMIN NÃO RESPONDE
+    if info["role"] == "admin":
+        raise HTTPException(403, "Admin não pode responder chamados")
+
+    # Usuário comum só responde o próprio
+    if info["role"] == "comum" and chamado["autor"] != info["user"]:
+        raise HTTPException(403, "Acesso negado")
 
     mensagem = {
         "autor": info["user"],
@@ -657,18 +649,17 @@ def responder_chamado(
     if info["user"] in chamado["nao_lido_por"]:
         chamado["nao_lido_por"].remove(info["user"])
 
-    # Define novo status + quem será notificado
-    if info["role"] in ["admin", "ti"]:
+    # Se TI respondeu → notifica autor
+    if info["role"] == "ti":
         chamado["status"] = "Em andamento"
-
         if chamado["autor"] not in chamado["nao_lido_por"]:
             chamado["nao_lido_por"].append(chamado["autor"])
-    else:
-        chamado["status"] = "Respondido"
 
-        for r in ["admin", "ti"]:
-            if r not in chamado["nao_lido_por"]:
-                chamado["nao_lido_por"].append(r)
+    # Se autor respondeu → notifica TI
+    if info["role"] == "comum":
+        chamado["status"] = "Respondido"
+        if "ti" not in chamado["nao_lido_por"]:
+            chamado["nao_lido_por"].append("ti")
 
     return mensagem
 
@@ -716,18 +707,7 @@ def notifications_count(authorization: Optional[str] = Header(None)):
     return {"count": count}
 
 
-
-# ---------------- Admin / util ----------------
-@app.post("/admin/cleanup")
-def admin_cleanup(authorization: Optional[str] = Header(None), older_than_hours: int = 24):
-    info = verify_token_header(authorization)
-    if info["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Acesso negado")
-    removed = cleanup_temp_files(older_than_seconds=older_than_hours * 3600)
-    return {"removed_files": removed}
-
 # ---------------- Run ----------------
 if __name__ == "__main__":
-    import uvicorn
     logger.info("Iniciando FastAPI em http://0.0.0.0:5055")
     uvicorn.run("main:app", host="0.0.0.0", port=5055, log_level="info")
