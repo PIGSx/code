@@ -31,6 +31,13 @@ export default function Kits() {
         "30001848 – Tubo PEAD",
       ],
     },
+    {
+      titulo: "COMPACTAÇÃO E SELAGEM DA BASE INV",
+      descricao: "Materiais utilizados na compactação e selagem",
+      itens: [
+        "10014709 - REPARADOR ASFALTICO",
+      ],
+    },
   ];
 
   const termo = search.toLowerCase();
