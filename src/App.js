@@ -7,7 +7,7 @@ import RoutsPage from "./router";
 import { ThemeProvider } from "./context/ThemeContext";
 import { NotificationProvider } from "./context/NotificationContext";
 
-import ThemeToggle from "./components/ThemeToggle";
+
 
 function App() {
   return (
@@ -18,8 +18,7 @@ function App() {
             <RoutsPage />
           </main>
 
-          {/* Botão flutuante de tema */}
-          <ThemeToggle />
+       
         </div>
 
         <Footer />
