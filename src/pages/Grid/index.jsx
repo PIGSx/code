@@ -27,7 +27,10 @@ export default function Grid() {
     setHasAdminAccess(storedRole === "admin" || storedRole === "ti");
   }, []);
 
-  const user = localStorage.getItem("user") || "usuário";
+  const user =
+  localStorage.getItem("username") ||
+  localStorage.getItem("user") ||
+  "";
 
   const apps = [
     {
@@ -114,10 +117,13 @@ export default function Grid() {
                 </div>
 
                 <h1 className="max-w-3xl text-4xl font-black tracking-tight lg:text-5xl">
-                  Bem-vindo,{" "}
-                  <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
-                    {user}
-                  </span>
+               Bem-vindo{user ? "," : ""}{" "}
+{user && (
+  <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
+    {user}
+  </span>
+)}{" "}
+👋
                 </h1>
 
                 <p
