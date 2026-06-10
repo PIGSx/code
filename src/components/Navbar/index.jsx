@@ -59,7 +59,7 @@ const Navbar = () => {
       }
 
       try {
-        const res = await api.get("/current_user");
+        const res = await api.get("/me");
 
         if (res.data?.logged_in) {
           setUser(res.data.user);

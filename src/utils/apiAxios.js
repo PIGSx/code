@@ -1,28 +1,18 @@
 // src/utils/apiAxios.js
+
 import axios from "axios";
 
 // ===================================
-// 🔍 Detecta ambiente automaticamente
+// 🔥 API LOCAL (FastAPI)
 // ===================================
-const hostname = window.location.hostname;
-
-let API_URL;
-if (
-  hostname === "localhost" ||
-  hostname === "127.0.0.1" ||
-  hostname.startsWith("192.168.")
-) {
-  API_URL = "http://127.0.0.1:5055";
-} else {
-  API_URL = "https://api.technoblade.shop";
-}
+const API_URL = "http://127.0.0.1:8000";
 
 // ===================================
 // ✅ Instância Axios
 // ===================================
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 120000, // ⏱️ 2 minutos (Selenium pode demorar)
+  timeout: 120000,
 });
 
 // ===================================
@@ -34,11 +24,12 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
 
+    // ✅ adiciona token automaticamente
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // 🔥 FormData → NÃO setar Content-Type
+    // ✅ FormData → NÃO definir Content-Type
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     } else {
@@ -52,16 +43,19 @@ api.interceptors.request.use(
 
 // ===================================
 // 🔒 Response interceptor
-// - 401 → token inválido → logout
-// - 403 → permissão / regra de negócio (NÃO desloga)
+// - 401 → logout automático
+// - 403 → acesso negado
 // ===================================
 api.interceptors.response.use(
   (response) => response,
+
   (error) => {
     if (error.response) {
       const status = error.response.status;
 
+      // ===================================
       // 🚫 TOKEN INVÁLIDO / EXPIRADO
+      // ===================================
       if (status === 401) {
         console.warn("Sessão expirada ou token inválido");
 
@@ -70,21 +64,32 @@ api.interceptors.response.use(
         localStorage.removeItem("role");
         localStorage.removeItem("token_exp");
 
-        if (window.pauseExibicao) {
-          window.pauseExibicao();
-        }
-
         window.location.href = "/login";
       }
 
-      // 🚧 403 → apenas bloqueia ação
+      // ===================================
+      // 🚫 SEM PERMISSÃO
+      // ===================================
       if (status === 403) {
-        console.warn("Acesso negado:", error.response.data?.detail);
+        console.warn(
+          "Acesso negado:",
+          error.response.data?.detail
+        );
       }
-    } else if (error.code === "ECONNABORTED") {
-      console.error("⏱️ Timeout da requisição");
-    } else {
-      console.error("❌ Erro de rede ou servidor indisponível");
+    }
+
+    // ===================================
+    // ⏱️ Timeout
+    // ===================================
+    else if (error.code === "ECONNABORTED") {
+      console.error("Timeout da requisição");
+    }
+
+    // ===================================
+    // ❌ API OFFLINE
+    // ===================================
+    else {
+      console.error("Servidor indisponível");
     }
 
     return Promise.reject(error);
@@ -92,7 +97,7 @@ api.interceptors.response.use(
 );
 
 // ===================================
-// Exporta
+// EXPORTS
 // ===================================
 export default api;
 export { API_URL };

@@ -26,6 +26,7 @@ const LoginPage = () => {
 
     try {
       const res = await api.post("/login", { username, password });
+     
 
       if (res.data?.success && res.data?.token) {
         setAuth(
